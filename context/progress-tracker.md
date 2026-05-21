@@ -98,6 +98,38 @@ Verification:
 
 ---
 
+## Editor Shell Base Chrome
+
+Spec:
+
+- `context/feature-specs/02-editor.md`
+
+Completed implementation:
+
+- Added `components/editor/editor-navbar.tsx`
+  - Fixed-height top navbar
+  - Left, center, and right sections
+  - Sidebar toggle button using `PanelLeftOpen` / `PanelLeftClose`
+  - Dark surface background and subtle bottom border
+- Added `components/editor/project-sidebar.tsx`
+  - Floating fixed-position sidebar that does not push page content
+  - Left slide-in animation controlled by `isOpen` and `isClosed`
+  - Header with `Projects` title and close button
+  - shadcn `Tabs` for `My Projects` and `Shared`
+  - Empty placeholder state for both tabs
+  - Full-width bottom `New Project` button with `Plus` icon
+- Added `components/editor/editor-dialog.tsx`
+  - Reusable future dialog content pattern with title, description,
+    body content, and footer actions
+  - Uses existing theme tokens and shadcn dialog primitives
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -148,7 +180,9 @@ Planned editor foundation:
 
 Status:
 
-- Not started yet
+- Base editor chrome from `context/feature-specs/02-editor.md` completed
+- Central canvas surface and right properties panel remain pending future
+  implementation specs
 
 ---
 
