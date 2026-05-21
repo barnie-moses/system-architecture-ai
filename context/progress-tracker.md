@@ -23,8 +23,8 @@ full context.
 
 # Current Goal
 
-- Continue the application foundation after completing
-  `context/feature-specs/01-design-specs.md`.
+- Continue Phase 1 foundation after completing the UI-only project dialog and
+  sidebar action flow from `context/feature-specs/04-project-dialogs.md`.
 
 Immediate priorities:
 
@@ -214,6 +214,57 @@ Verification:
 
 ---
 
+## Project Dialogs and Sidebar Actions
+
+Spec:
+
+- `context/feature-specs/04-project-dialogs.md`
+
+Completed implementation:
+
+- Updated the `/editor` home screen with the specified heading, description,
+  and `New Project` button using a Lucide `Plus` icon
+  - Removed the small `Editor` eyebrow label from the empty state
+  - Widened the empty-state copy area so the heading remains on one line on
+    desktop viewports
+- Added `components/editor/use-project-dialogs.ts`
+  - Centralizes mock project data
+  - Manages dialog state, form state, slug preview, validation, and loading
+    state
+  - Supports mock create, rename, and delete mutations without API calls or
+    persistence
+- Added `components/editor/project-dialogs.tsx`
+  - Create project dialog with project name input and live slug preview
+  - Rename project dialog with prefilled name, current name in the description,
+    autofocus, and Enter-submit behavior
+  - Delete project dialog with destructive confirmation only and destructive
+    button styling
+- Updated `components/editor/project-sidebar.tsx`
+  - Renders mock owned and shared project sections
+  - Shows rename and delete icon actions only for owned projects
+  - Reveals owned-project rename and delete actions only on project-row hover
+    or keyboard focus
+  - Hides actions for shared/collaborator projects
+  - Wires sidebar `New Project`, rename, and delete actions into the dialog
+    controller
+  - Adds mobile-only outside-click close behavior with a backdrop scrim
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Existing local dev server on `http://localhost:3000` responds for `/editor`
+  and correctly redirects signed-out requests to Clerk sign-in
+
+Notes:
+
+- No API routes, database schema, blob storage, or persistence behavior were
+  added for this spec.
+- Browser automation could not be driven because the required Node REPL browser
+  control tool was not available in this session.
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -249,6 +300,7 @@ Status:
 
 - Design system and UI primitive setup completed
 - Clerk authentication setup completed
+- UI-only project dialogs and sidebar project actions completed with mock data
 
 ---
 
