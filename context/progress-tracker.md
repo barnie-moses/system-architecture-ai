@@ -13,6 +13,8 @@ full context.
 
 - Phase 1 — Core Foundation
 - Design system and UI primitive foundation completed
+- Clerk authentication foundation completed
+- Auth page visual composition refined from reference screenshot
 - Context specification finalized
 - System boundaries established
 - UI design language defined
@@ -26,12 +28,10 @@ full context.
 
 Immediate priorities:
 
-1. Establish base layout and editor shell
-2. Configure authentication
-3. Establish Prisma schema
-4. Configure PostgreSQL connection
-5. Add protected route middleware
-6. Configure environment validation
+1. Establish Prisma schema
+2. Configure PostgreSQL connection
+3. Configure environment validation
+4. Begin project ownership and persistence foundations
 
 ---
 
@@ -130,6 +130,90 @@ Verification:
 
 ---
 
+## Authentication Foundation
+
+Spec:
+
+- `context/feature-specs/03-auth.md`
+
+Completed implementation:
+
+- Installed `@clerk/ui` for Clerk-provided themes
+- Added shared Clerk route constants in `lib/auth-routes.ts`
+  - Uses `NEXT_PUBLIC_CLERK_SIGN_IN_URL` when defined, otherwise `/sign-in`
+  - Uses `NEXT_PUBLIC_CLERK_SIGN_UP_URL` when defined, otherwise `/sign-up`
+- Added `lib/clerk-appearance.ts`
+  - Uses Clerk's `dark` theme
+  - Overrides Clerk appearance variables with existing app CSS variables
+  - Avoids hardcoded application colors in auth styling
+- Wrapped the root app with `ClerkProvider` inside `<body>`
+  - Uses the shared Clerk dark appearance
+  - Sets sign-in and sign-up URLs from shared route constants
+  - Sends successful sign-in/sign-up fallback redirects to `/editor`
+- Added root `proxy.ts`
+  - Uses Next.js 16 Proxy convention rather than `middleware.ts`
+  - Defines public auth routes from Clerk sign-in/sign-up route constants
+  - Protects every non-auth route by default
+  - Includes app and API/TRPC route matcher coverage
+- Added Clerk catch-all auth routes:
+  - `app/sign-in/[[...sign-in]]/page.tsx`
+  - `app/sign-up/[[...sign-up]]/page.tsx`
+- Added `components/auth/auth-page-shell.tsx`
+  - Large-screen two-panel auth layout
+  - Compact logo, tagline, and text-only feature list on the left
+  - Centered Clerk form on the right
+  - Mobile renders the form-focused layout only
+- Updated `/`
+  - Authenticated users redirect to `/editor`
+  - Unauthenticated users redirect to the Clerk sign-in path
+- Added a minimal protected `/editor` route and `EditorShell`
+  - Reuses the existing editor navbar and project sidebar
+  - Provides the redirect target required by the auth spec
+- Added Clerk's built-in `UserButton` to the editor navbar right section
+  - Keeps Clerk's default profile and logout flow intact
+- Adjusted `components/editor/editor-navbar.tsx` after auth integration
+  - Left and right sections now size to their contents
+  - Center section owns the remaining flexible space
+  - Clerk `UserButton` is pinned to the far-right edge of the navbar
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Local route smoke checks against the running dev server:
+  - `/` redirects signed-out document requests to the local Clerk sign-in route
+  - `/editor` redirects signed-out document requests to the local Clerk sign-in route
+  - `/sign-in` returns `200 OK`
+  - `/sign-up` returns `200 OK`
+
+---
+
+## Authentication UI Refinement
+
+Completed implementation:
+
+- Updated `components/auth/auth-page-shell.tsx`
+  - Left panel now occupies slightly less than half the large-screen layout
+  - Brand mark and product name are positioned high-left
+  - Headline and supporting copy sit in the middle-left content area
+  - Feature rows use compact Lucide icon tiles with text to the right
+  - Copyright text is pinned to the lower-left area
+  - Mobile remains form-focused with the left information panel hidden
+- Updated sign-in and sign-up page copy so each page uses similar positioning
+  with distinct, non-identical text
+- Expanded Clerk appearance overrides in `lib/clerk-appearance.ts`
+  - Wider card treatment
+  - Dark elevated card surface
+  - Token-based borders, inputs, buttons, footer, and text colors
+  - No raw Tailwind palette classes or hardcoded application colors added
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -164,6 +248,7 @@ Planned setup sequence:
 Status:
 
 - Design system and UI primitive setup completed
+- Clerk authentication setup completed
 
 ---
 
@@ -181,6 +266,7 @@ Planned editor foundation:
 Status:
 
 - Base editor chrome from `context/feature-specs/02-editor.md` completed
+- Minimal protected `/editor` route added for authenticated redirects
 - Central canvas surface and right properties panel remain pending future
   implementation specs
 
@@ -195,11 +281,10 @@ Priority order:
 1. Initialize repository structure
 2. Configure TypeScript strict mode
 3. Establish base layout
-4. Configure authentication
-5. Establish Prisma schema
-6. Configure PostgreSQL connection
-7. Add protected route middleware
-8. Configure environment validation
+4. Establish Prisma schema
+5. Configure PostgreSQL connection
+6. Configure environment validation
+7. Begin project ownership and persistence foundations
 
 ---
 
@@ -254,6 +339,10 @@ Planned features:
 - Optimistic UI strategy for collaborative edits
 - `context/architecture-context.md` is referenced by `AGENTS.md`,
   but the available architecture context file is `context/architecture.md`.
+- Local auth paths currently default to `/sign-in` and `/sign-up` when
+  `NEXT_PUBLIC_CLERK_SIGN_IN_URL` and `NEXT_PUBLIC_CLERK_SIGN_UP_URL` are not
+  defined. If custom auth paths are introduced, the App Router auth route
+  folders must be kept consistent with those values.
 
 ---
 
@@ -317,6 +406,22 @@ Reason:
 
 ---
 
+## Authentication Routing
+
+Decision:
+
+- Use Next.js 16 `proxy.ts` with Clerk protected-first route protection.
+- Keep only Clerk sign-in and sign-up paths public.
+- Keep `/` protected by Proxy and also redirect from the page as a fallback.
+
+Reason:
+
+- Matches the auth spec requirement to protect everything except auth pages.
+- Keeps request-time auth checks at the framework boundary.
+- Preserves a simple root redirect flow into `/editor`.
+
+---
+
 ## Icon Package
 
 Decision:
@@ -364,14 +469,20 @@ Reason:
 
 ## Current State
 
-The project is currently in architecture-finalization stage.
+The project is currently in Phase 1 foundation implementation.
 
 Completed documents:
 
 - `code-standards.md`
 - `ui-context.md`
-- `architecture-context.md`
+- `architecture.md`
 - `progress-tracker.md`
+
+Completed implementation foundations:
+
+- Design tokens and shadcn/ui primitives
+- Base editor chrome components
+- Clerk authentication, auth pages, protected Proxy, and `/editor` redirect target
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -407,13 +518,12 @@ Must maintain:
 
 Next implementation session should begin with:
 
-1. Repository bootstrap
-2. Tailwind token setup
-3. shadcn/ui initialization
-4. Prisma schema creation
-5. Clerk integration
-6. Base application shell
+1. Prisma schema creation
+2. PostgreSQL connection setup
+3. Environment validation
+4. Project ownership and persistence foundations
 
-After foundation setup, begin editor layout implementation.
+After persistence foundations, continue into project list and editor data
+loading work.
 
 ```
