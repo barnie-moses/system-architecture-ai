@@ -1,4 +1,4 @@
-We need the base chrome that frame every editor screen - the top navbar and the left sidebar shell. These will be reusedand extended in every chapter that follows.
+We need the base chrome that frame every editor screen - the top navbar and the left sidebar shell. These will be reused and extended in every chapter that follows.
 
 ### Editor Navbar
 
@@ -10,7 +10,7 @@ Requirements:
 - left, center, and right sections on the top navbar
 - left section contains sidebar toggle button
 - use `PanelLeftOpen` and `PanelLeftClose` icons based in the sidebar state
-- right sectiona stays empty for now
+- right section stays empty for now
 - dark background with subtle bottom border
 
 
