@@ -5,14 +5,22 @@ import { EditorShell } from "@/components/editor/editor-shell";
 import { signInPath } from "@/lib/auth-routes";
 import { listEditorProjectsForUser } from "@/lib/projects";
 
-export default async function EditorPage() {
+type ProjectWorkspacePageProps = {
+  params: Promise<{
+    projectId: string;
+  }>;
+};
+
+export default async function ProjectWorkspacePage({
+  params,
+}: ProjectWorkspacePageProps) {
   const { isAuthenticated, userId } = await auth();
 
   if (!isAuthenticated || !userId) {
     redirect(signInPath);
   }
 
-  const user = await currentUser();
+  const [{ projectId }, user] = await Promise.all([params, currentUser()]);
   const collaboratorEmails =
     user?.emailAddresses.map((email) => email.emailAddress) ?? [];
   const projectLists = await listEditorProjectsForUser(
@@ -20,5 +28,5 @@ export default async function EditorPage() {
     collaboratorEmails
   );
 
-  return <EditorShell {...projectLists} />;
+  return <EditorShell {...projectLists} activeProjectId={projectId} />;
 }

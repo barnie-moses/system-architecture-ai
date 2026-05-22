@@ -4,10 +4,8 @@ import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { EditorDialogContent } from "@/components/editor/editor-dialog";
-import type {
-  MockProject,
-  ProjectDialogKind,
-} from "@/components/editor/use-project-dialogs";
+import type { ProjectDialogKind } from "@/hooks/use-project-actions";
+import type { EditorProject } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,12 +13,13 @@ import { Input } from "@/components/ui/input";
 type ProjectDialogsProps = {
   canSubmitName: boolean;
   dialogKind: ProjectDialogKind | null;
+  errorMessage: string | null;
   isLoading: boolean;
   isOpen: boolean;
-  isSlugValid: boolean;
+  isRoomIdValid: boolean;
   name: string;
-  project: MockProject | null;
-  slugPreview: string;
+  project: EditorProject | null;
+  roomIdPreview: string;
   onCreate: () => void;
   onDelete: () => void;
   onNameChange: (name: string) => void;
@@ -30,24 +29,28 @@ type ProjectDialogsProps = {
 
 function ProjectNameFields({
   canSubmitName,
+  errorMessage,
   inputLabel,
-  isSlugValid,
+  isRoomIdValid,
   name,
-  slugPreview,
+  roomIdPreview,
   onNameChange,
+  showRoomIdPreview,
   shouldAutoFocus = false,
 }: {
   canSubmitName: boolean;
+  errorMessage: string | null;
   inputLabel: string;
-  isSlugValid: boolean;
+  isRoomIdValid: boolean;
   name: string;
-  slugPreview: string;
+  roomIdPreview: string;
   onNameChange: (name: string) => void;
+  showRoomIdPreview: boolean;
   shouldAutoFocus?: boolean;
 }) {
   const hasName = name.trim().length > 0;
-  const previewText = slugPreview || "project-slug";
-  const showInvalidState = hasName && !isSlugValid;
+  const previewText = roomIdPreview || "project-room-id";
+  const showInvalidState = hasName && !isRoomIdValid;
 
   return (
     <div className="space-y-4">
@@ -68,44 +71,54 @@ function ProjectNameFields({
         />
       </div>
 
-      <div className="rounded-2xl border border-surface-border bg-surface p-3">
-        <p className="text-xs font-medium text-copy-muted">Slug preview</p>
-        <p className="mt-1 break-words font-mono text-sm text-copy-primary">
-          {previewText}
-        </p>
-        {!canSubmitName ? (
-          <p className="mt-2 text-xs text-copy-muted">
-            Use a project name that produces a lowercase slug with letters,
-            numbers, and hyphens.
+      {showRoomIdPreview ? (
+        <div className="rounded-2xl border border-surface-border bg-surface p-3">
+          <p className="text-xs font-medium text-copy-muted">
+            Room ID preview
           </p>
-        ) : null}
-      </div>
+          <p className="mt-1 break-words font-mono text-sm text-copy-primary">
+            {previewText}
+          </p>
+          {!canSubmitName ? (
+            <p className="mt-2 text-xs text-copy-muted">
+              Use a project name that produces a lowercase room ID with
+              letters, numbers, and hyphens.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="text-sm text-state-error">{errorMessage}</p>
+      ) : null}
     </div>
   );
 }
 
 function CreateProjectDialog({
   canSubmitName,
+  errorMessage,
   isLoading,
-  isSlugValid,
+  isRoomIdValid,
   name,
-  slugPreview,
+  roomIdPreview,
   onCreate,
   onNameChange,
 }: Pick<
   ProjectDialogsProps,
   | "canSubmitName"
+  | "errorMessage"
   | "isLoading"
-  | "isSlugValid"
+  | "isRoomIdValid"
   | "name"
-  | "slugPreview"
+  | "roomIdPreview"
   | "onCreate"
   | "onNameChange"
 >) {
   return (
     <EditorDialogContent
       title="Create project"
-      description="Start a new architecture workspace with a readable project slug."
+      description="Start a new architecture workspace with a readable room ID."
       footer={
         <Button
           type="submit"
@@ -125,11 +138,13 @@ function CreateProjectDialog({
       >
         <ProjectNameFields
           canSubmitName={canSubmitName}
+          errorMessage={errorMessage}
           inputLabel="Project name"
-          isSlugValid={isSlugValid}
+          isRoomIdValid={isRoomIdValid}
           name={name}
-          slugPreview={slugPreview}
+          roomIdPreview={roomIdPreview}
           onNameChange={onNameChange}
+          showRoomIdPreview
         />
       </form>
     </EditorDialogContent>
@@ -138,21 +153,23 @@ function CreateProjectDialog({
 
 function RenameProjectDialog({
   canSubmitName,
+  errorMessage,
   isLoading,
-  isSlugValid,
+  isRoomIdValid,
   name,
   project,
-  slugPreview,
+  roomIdPreview,
   onNameChange,
   onRename,
 }: Pick<
   ProjectDialogsProps,
   | "canSubmitName"
+  | "errorMessage"
   | "isLoading"
-  | "isSlugValid"
+  | "isRoomIdValid"
   | "name"
   | "project"
-  | "slugPreview"
+  | "roomIdPreview"
   | "onNameChange"
   | "onRename"
 >) {
@@ -179,12 +196,14 @@ function RenameProjectDialog({
       >
         <ProjectNameFields
           canSubmitName={canSubmitName}
+          errorMessage={errorMessage}
           inputLabel="Project name"
-          isSlugValid={isSlugValid}
+          isRoomIdValid={isRoomIdValid}
           name={name}
           shouldAutoFocus
-          slugPreview={slugPreview}
+          roomIdPreview={roomIdPreview}
           onNameChange={onNameChange}
+          showRoomIdPreview={false}
         />
       </form>
     </EditorDialogContent>
@@ -192,14 +211,18 @@ function RenameProjectDialog({
 }
 
 function DeleteProjectDialog({
+  errorMessage,
   isLoading,
   project,
   onDelete,
-}: Pick<ProjectDialogsProps, "isLoading" | "project" | "onDelete">) {
+}: Pick<
+  ProjectDialogsProps,
+  "errorMessage" | "isLoading" | "project" | "onDelete"
+>) {
   return (
     <EditorDialogContent
       title="Delete project"
-      description="This removes the project from the mock project list for this session."
+      description="This removes the project and returns the editor home if it is the active workspace."
       footer={
         <Button
           type="button"
@@ -220,6 +243,9 @@ function DeleteProjectDialog({
           <p className="mt-2 text-sm leading-6 text-copy-muted">
             This action does not ask for extra text confirmation.
           </p>
+          {errorMessage ? (
+            <p className="mt-3 text-sm text-state-error">{errorMessage}</p>
+          ) : null}
         </div>
       </div>
     </EditorDialogContent>
@@ -229,12 +255,13 @@ function DeleteProjectDialog({
 export function ProjectDialogs({
   canSubmitName,
   dialogKind,
+  errorMessage,
   isLoading,
   isOpen,
-  isSlugValid,
+  isRoomIdValid,
   name,
   project,
-  slugPreview,
+  roomIdPreview,
   onCreate,
   onDelete,
   onNameChange,
@@ -246,10 +273,11 @@ export function ProjectDialogs({
       {dialogKind === "create" ? (
         <CreateProjectDialog
           canSubmitName={canSubmitName}
+          errorMessage={errorMessage}
           isLoading={isLoading}
-          isSlugValid={isSlugValid}
+          isRoomIdValid={isRoomIdValid}
           name={name}
-          slugPreview={slugPreview}
+          roomIdPreview={roomIdPreview}
           onCreate={onCreate}
           onNameChange={onNameChange}
         />
@@ -258,11 +286,12 @@ export function ProjectDialogs({
       {dialogKind === "rename" ? (
         <RenameProjectDialog
           canSubmitName={canSubmitName}
+          errorMessage={errorMessage}
           isLoading={isLoading}
-          isSlugValid={isSlugValid}
+          isRoomIdValid={isRoomIdValid}
           name={name}
           project={project}
-          slugPreview={slugPreview}
+          roomIdPreview={roomIdPreview}
           onNameChange={onNameChange}
           onRename={onRename}
         />
@@ -270,6 +299,7 @@ export function ProjectDialogs({
 
       {dialogKind === "delete" ? (
         <DeleteProjectDialog
+          errorMessage={errorMessage}
           isLoading={isLoading}
           project={project}
           onDelete={onDelete}
