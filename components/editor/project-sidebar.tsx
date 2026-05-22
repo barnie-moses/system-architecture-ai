@@ -2,21 +2,24 @@
 
 import * as React from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { MockProject } from "@/components/editor/use-project-dialogs";
 import { cn } from "@/lib/utils";
+import type { EditorProject } from "@/types/projects";
 
 type ProjectSidebarProps = React.ComponentProps<"aside"> & {
+  activeProjectId?: string;
   isOpen: boolean;
   isClosed: boolean;
   onClose?: () => void;
   onNewProject?: () => void;
-  onDeleteProject?: (project: MockProject) => void;
-  onRenameProject?: (project: MockProject) => void;
-  projects?: MockProject[];
+  onDeleteProject?: (project: EditorProject) => void;
+  onRenameProject?: (project: EditorProject) => void;
+  ownedProjects: EditorProject[];
+  sharedProjects: EditorProject[];
 };
 
 function EmptyProjectsState({ label }: { label: string }) {
@@ -28,15 +31,17 @@ function EmptyProjectsState({ label }: { label: string }) {
 }
 
 function ProjectList({
+  activeProjectId,
   emptyLabel,
   onDeleteProject,
   onRenameProject,
   projects,
 }: {
+  activeProjectId?: string;
   emptyLabel: string;
-  onDeleteProject?: (project: MockProject) => void;
-  onRenameProject?: (project: MockProject) => void;
-  projects: MockProject[];
+  onDeleteProject?: (project: EditorProject) => void;
+  onRenameProject?: (project: EditorProject) => void;
+  projects: EditorProject[];
 }) {
   if (projects.length === 0) {
     return <EmptyProjectsState label={emptyLabel} />;
@@ -46,20 +51,27 @@ function ProjectList({
     <div className="space-y-2">
       {projects.map((project) => {
         const isOwned = project.ownership === "owned";
+        const isActive = project.id === activeProjectId;
 
         return (
           <div
             key={project.id}
-            className="group/project flex min-h-16 items-center gap-3 rounded-2xl border border-surface-border bg-elevated px-3 py-2"
+            className={cn(
+              "group/project flex min-h-16 items-center gap-3 rounded-2xl border border-surface-border bg-elevated px-3 py-2",
+              isActive ? "border-brand bg-accent-dim" : null
+            )}
           >
-            <div className="min-w-0 flex-1">
+            <Link
+              href={`/editor/${project.id}`}
+              className="min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               <p className="truncate text-sm font-medium text-copy-primary">
                 {project.name}
               </p>
               <p className="mt-1 truncate font-mono text-xs text-copy-muted">
-                {project.slug}
+                {project.roomId}
               </p>
-            </div>
+            </Link>
 
             {isOwned ? (
               <div className="pointer-events-none flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/project:pointer-events-auto group-hover/project:opacity-100 group-focus-within/project:pointer-events-auto group-focus-within/project:opacity-100">
@@ -91,21 +103,19 @@ function ProjectList({
 }
 
 export function ProjectSidebar({
+  activeProjectId,
   isOpen,
   isClosed,
   onClose,
   onDeleteProject,
   onNewProject,
   onRenameProject,
-  projects = [],
+  ownedProjects,
+  sharedProjects,
   className,
   ...props
 }: ProjectSidebarProps) {
   const isVisible = isOpen && !isClosed;
-  const ownedProjects = projects.filter((project) => project.ownership === "owned");
-  const sharedProjects = projects.filter(
-    (project) => project.ownership === "shared"
-  );
 
   return (
     <>
@@ -156,6 +166,7 @@ export function ProjectSidebar({
           <ScrollArea className="min-h-0 flex-1">
             <TabsContent value="my-projects" className="h-full">
               <ProjectList
+                activeProjectId={activeProjectId}
                 emptyLabel="No projects yet."
                 projects={ownedProjects}
                 onDeleteProject={onDeleteProject}
@@ -164,6 +175,7 @@ export function ProjectSidebar({
             </TabsContent>
             <TabsContent value="shared" className="h-full">
               <ProjectList
+                activeProjectId={activeProjectId}
                 emptyLabel="No shared projects yet."
                 projects={sharedProjects}
               />

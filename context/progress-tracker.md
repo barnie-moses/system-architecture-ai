@@ -15,6 +15,10 @@ full context.
 - Design system and UI primitive foundation completed
 - Clerk authentication foundation completed
 - Prisma persistence foundation completed
+- Project API route foundation completed
+- Editor home project data wiring completed
+- Editor home project data wiring re-verified against spec 07
+- Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
 - Context specification finalized
 - System boundaries established
@@ -24,15 +28,15 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after completing the Prisma persistence
-  foundation from `context/feature-specs/05-prisma.md`.
+- Continue Phase 1 foundation after verifying the editor home is wired to
+  real project data from `context/feature-specs/07-wire-editor-home.md`.
 
 Immediate priorities:
 
-1. Configure environment validation
-2. Begin project ownership and persistence foundations
-3. Replace mock project dialog data with Prisma-backed persistence
-4. Begin project list loading and editor data foundations
+1. Configure remaining environment validation
+2. Begin Liveblocks room lifecycle foundations when specified
+3. Begin central canvas surface implementation when specified
+4. Add project collaborator management when specified
 
 ---
 
@@ -266,6 +270,44 @@ Notes:
 
 ---
 
+## Editor Home Project Data Wiring
+
+Spec:
+
+- `context/feature-specs/07-wire-editor-home.md`
+
+Completed implementation:
+
+- `/editor` remains a server component route that authenticates with Clerk,
+  fetches owned and shared projects server-side through `listEditorProjectsForUser`,
+  and passes the project lists into `EditorShell`
+- `/editor/[projectId]` fetches the same server-side project lists and passes
+  the active project ID into `EditorShell`
+- `hooks/use-project-actions.ts` owns create, rename, and delete dialog state
+  plus client-side project mutation calls
+- Create generates a slugified room ID with a short suffix, sends it as the
+  project ID to `POST /api/projects`, and navigates to the new workspace so the
+  project ID and room ID remain aligned
+- Rename calls `PATCH /api/projects/[projectId]` and refreshes the route on
+  success
+- Delete calls `DELETE /api/projects/[projectId]`, redirects to `/editor` when
+  deleting the active workspace, and refreshes otherwise
+- Sidebar and dialogs consume real project data and display project names,
+  room IDs, rename prefill state, delete target names, and create room ID
+  previews
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+Notes:
+
+- No additional implementation changes were required during this verification
+  pass because the spec behavior was already present.
+
+---
+
 ## Prisma Persistence Foundation
 
 Spec:
@@ -278,7 +320,7 @@ Completed implementation:
   - Defines `ProjectStatus` enum with `DRAFT` and `ARCHIVE`
   - Defines `Project` with Clerk owner ID, name, optional description,
     status, future canvas blob path, timestamps, and collaborator relation
-  - Defines `ProjectCollborators` with cascade project relation,
+  - Defines `ProjectCollaborators` with cascade project relation,
     collaborator email, creation timestamp, unique project/email constraint,
     and required indexes
 - Added `lib/prisma.ts`
@@ -302,8 +344,134 @@ Verification:
 
 Notes:
 
-- The Prisma spec used the names `canvasJasonPath` and
-  `ProjectCollborators`; the implementation preserves those names exactly.
+- The Prisma spec used the name `canvasJsonPath` and
+  `ProjectCollaborators`; the implementation preserves those names exactly.
+
+---
+
+## Prisma Project Schema Drift Repair
+
+Completed implementation:
+
+- Updated the pending `20260522210000_fix_project_collaborators` migration to
+  repair early project-model schema drift safely
+- The migration now renames an existing `Project.canvasJasonPath` column to
+  `Project.canvasJsonPath` when present, otherwise adds `Project.canvasJsonPath`
+  if the column is missing
+- Preserved the existing repair for renaming `ProjectCollborators` to
+  `ProjectCollaborators`
+- Applied the pending migration to the configured PostgreSQL database with
+  `npx prisma migrate deploy`
+- Updated `lib/prisma.ts` to normalize legacy PostgreSQL SSL modes
+  (`prefer`, `require`, and `verify-ca`) to `verify-full` before initializing
+  the `pg` adapter, preserving the current security behavior while removing
+  the runtime warning
+
+Verification:
+
+- `npx prisma migrate status` reports the database schema is up to date
+- Direct Prisma read selecting `Project.canvasJsonPath` succeeded without the
+  PostgreSQL SSL mode warning
+- `npm run lint` passed
+- `npm run build` passed
+
+Notes:
+
+- The Clerk development-key warning can still appear in local development and
+  is expected until production Clerk keys are configured.
+
+---
+
+## Project API Routes
+
+Spec:
+
+- `context/feature-specs/06-project-api.md`
+
+Completed implementation:
+
+- Added `lib/projects.ts`
+  - Centralizes project API validation helpers
+  - Reads JSON request bodies safely, including empty bodies
+  - Defaults missing create names to `Untitled Project`
+  - Provides Prisma-backed project list, create, owner-only rename, and
+    owner-only delete helpers
+- Added `app/api/projects/route.ts`
+  - `GET /api/projects` lists authenticated current-user projects
+  - `POST /api/projects` creates a project for the authenticated Clerk user
+  - Unauthenticated requests return `401`
+- Added `app/api/projects/[projectId]/route.ts`
+  - `PATCH /api/projects/[projectId]` renames owner-owned projects only
+  - `DELETE /api/projects/[projectId]` deletes owner-owned projects only
+  - Missing ownership returns `403`
+- Kept the implementation backend-only with no UI wiring changes.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
+## Wire Editor Home To Project API
+
+Spec:
+
+- `context/feature-specs/07-wire-editor-home.md`
+
+Completed implementation:
+
+- Added `types/projects.ts`
+  - Defines the serializable editor project shape and owned/shared list shape
+- Updated `lib/projects.ts`
+  - Adds `listEditorProjectsForUser()` for server-side owned and shared
+    project loading
+  - Maps Prisma project IDs to editor room IDs so project ID and Liveblocks
+    room ID remain aligned
+  - Adds create payload validation for an optional client-generated project ID
+- Updated `POST /api/projects`
+  - Accepts a validated client-generated `id`
+  - Returns `409` when the requested project ID already exists
+- Added `hooks/use-project-actions.ts`
+  - Manages create, rename, and delete dialog state
+  - Generates a slug-based room ID with a short unique suffix during create
+  - Calls `POST /api/projects`, `PATCH /api/projects/[projectId]`, and
+    `DELETE /api/projects/[projectId]`
+  - Navigates to `/editor/{projectId}` after create
+  - Refreshes after rename and after deleting non-active projects
+  - Redirects to `/editor` after deleting the active workspace
+- Updated `app/editor/page.tsx`
+  - Remains a server component
+  - Fetches owned and shared projects server-side using Clerk identity and
+    Prisma helpers
+  - Passes project lists into the editor shell with no initial client fetch
+- Added `app/editor/[projectId]/page.tsx`
+  - Provides the workspace route used after project creation
+  - Passes the active project ID into the editor shell
+- Updated `components/editor/editor-shell.tsx`
+  - Receives real project lists through props
+  - Uses the new project action hook
+  - Keeps UI composition separate from persistence
+- Removed the obsolete `components/editor/use-project-dialogs.ts` mock hook
+- Updated `components/editor/project-sidebar.tsx`
+  - Renders real owned and shared projects
+  - Links project rows to `/editor/{projectId}`
+  - Keeps rename/delete actions owner-only
+- Updated `components/editor/project-dialogs.tsx`
+  - Shows create room ID preview
+  - Prefills rename names
+  - Shows delete target project names
+
+Architecture notes:
+
+- No new storage model is introduced.
+- API routes remain the mutation boundary.
+- Components remain presentation-focused and receive project data via props.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
 
 ---
 
@@ -344,6 +512,10 @@ Status:
 - Clerk authentication setup completed
 - UI-only project dialogs and sidebar project actions completed with mock data
 - Prisma foundation from `context/feature-specs/05-prisma.md` completed
+- Project API routes from `context/feature-specs/06-project-api.md`
+  completed
+- Editor home wiring from `context/feature-specs/07-wire-editor-home.md`
+  completed
 
 ---
 
@@ -362,6 +534,8 @@ Status:
 
 - Base editor chrome from `context/feature-specs/02-editor.md` completed
 - Minimal protected `/editor` route added for authenticated redirects
+- `/editor` now server-loads owned and shared projects from Prisma
+- `/editor/[projectId]` exists as the project workspace route
 - Central canvas surface and right properties panel remain pending future
   implementation specs
 
@@ -374,10 +548,10 @@ Status:
 Priority order:
 
 1. Configure environment validation
-2. Begin project ownership and persistence foundations
-3. Replace mock project data with Prisma-backed API routes
-4. Add ownership checks around project mutations
-5. Begin editor data loading from persisted project metadata
+2. Add project collaborator management when specified
+3. Begin Liveblocks room lifecycle foundations
+4. Begin editor canvas data loading and central canvas surface
+5. Add blob-backed canvas snapshot persistence when specified
 
 ---
 
@@ -579,6 +753,9 @@ Completed implementation foundations:
 - Clerk authentication, auth pages, protected Proxy, and `/editor` redirect target
 - Prisma project metadata schema, migration, generated client, and shared
   cached Prisma singleton
+- Prisma-backed project API routes
+- Server-loaded editor home project lists and API-backed create, rename, and
+  delete actions
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -615,11 +792,11 @@ Must maintain:
 Next implementation session should begin with:
 
 1. Environment validation
-2. Project ownership and persistence foundations
-3. Prisma-backed project create, rename, delete, and list APIs
-4. Editor data loading from project metadata
+2. Project collaborator management, if specified
+3. Liveblocks room lifecycle foundations, if specified
+4. Central canvas surface implementation, if specified
 
-After persistence foundations, continue into project list and editor data
-loading work.
+Project metadata persistence and editor home wiring are complete for the
+current Phase 1 scope.
 
 ```
