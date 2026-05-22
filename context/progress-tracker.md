@@ -14,6 +14,7 @@ full context.
 - Phase 1 — Core Foundation
 - Design system and UI primitive foundation completed
 - Clerk authentication foundation completed
+- Prisma persistence foundation completed
 - Auth page visual composition refined from reference screenshot
 - Context specification finalized
 - System boundaries established
@@ -23,15 +24,15 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after completing the UI-only project dialog and
-  sidebar action flow from `context/feature-specs/04-project-dialogs.md`.
+- Continue Phase 1 foundation after completing the Prisma persistence
+  foundation from `context/feature-specs/05-prisma.md`.
 
 Immediate priorities:
 
-1. Establish Prisma schema
-2. Configure PostgreSQL connection
-3. Configure environment validation
-4. Begin project ownership and persistence foundations
+1. Configure environment validation
+2. Begin project ownership and persistence foundations
+3. Replace mock project dialog data with Prisma-backed persistence
+4. Begin project list loading and editor data foundations
 
 ---
 
@@ -265,6 +266,47 @@ Notes:
 
 ---
 
+## Prisma Persistence Foundation
+
+Spec:
+
+- `context/feature-specs/05-prisma.md`
+
+Completed implementation:
+
+- Added `prisma/models/project.prisma`
+  - Defines `ProjectStatus` enum with `DRAFT` and `ARCHIVE`
+  - Defines `Project` with Clerk owner ID, name, optional description,
+    status, future canvas blob path, timestamps, and collaborator relation
+  - Defines `ProjectCollborators` with cascade project relation,
+    collaborator email, creation timestamp, unique project/email constraint,
+    and required indexes
+- Added `lib/prisma.ts`
+  - Exports one cached Prisma instance
+  - Uses `accelerateUrl` when `DATABASE_URL` starts with
+    `prisma+postgres://`
+  - Uses direct `@prisma/adapter-pg` for standard PostgreSQL URLs
+  - Caches the Prisma client on `globalThis` outside production for hot reloads
+- Created and applied initial migration:
+  - `prisma/migrations/20260522194238_init_project_models/migration.sql`
+- Regenerated Prisma Client to `app/generated/prisma`
+
+Verification:
+
+- `npx prisma format` passed
+- `npx prisma validate` passed
+- `npx prisma generate` passed
+- `npx prisma migrate dev --name init_project_models` created and applied the
+  migration successfully
+- `npm run build` passed
+
+Notes:
+
+- The Prisma spec used the names `canvasJasonPath` and
+  `ProjectCollborators`; the implementation preserves those names exactly.
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -301,6 +343,7 @@ Status:
 - Design system and UI primitive setup completed
 - Clerk authentication setup completed
 - UI-only project dialogs and sidebar project actions completed with mock data
+- Prisma foundation from `context/feature-specs/05-prisma.md` completed
 
 ---
 
@@ -330,13 +373,11 @@ Status:
 
 Priority order:
 
-1. Initialize repository structure
-2. Configure TypeScript strict mode
-3. Establish base layout
-4. Establish Prisma schema
-5. Configure PostgreSQL connection
-6. Configure environment validation
-7. Begin project ownership and persistence foundations
+1. Configure environment validation
+2. Begin project ownership and persistence foundations
+3. Replace mock project data with Prisma-backed API routes
+4. Add ownership checks around project mutations
+5. Begin editor data loading from persisted project metadata
 
 ---
 
@@ -382,7 +423,8 @@ Planned features:
 
 ## Technical Questions
 
-- Final Prisma schema structure for canvas entities
+- Final Prisma schema structure for canvas entities beyond the completed
+  project metadata foundation
 - Liveblocks room lifecycle strategy
 - Canvas persistence frequency strategy
 - Snapshot versioning approach
@@ -535,6 +577,8 @@ Completed implementation foundations:
 - Design tokens and shadcn/ui primitives
 - Base editor chrome components
 - Clerk authentication, auth pages, protected Proxy, and `/editor` redirect target
+- Prisma project metadata schema, migration, generated client, and shared
+  cached Prisma singleton
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -570,10 +614,10 @@ Must maintain:
 
 Next implementation session should begin with:
 
-1. Prisma schema creation
-2. PostgreSQL connection setup
-3. Environment validation
-4. Project ownership and persistence foundations
+1. Environment validation
+2. Project ownership and persistence foundations
+3. Prisma-backed project create, rename, delete, and list APIs
+4. Editor data loading from project metadata
 
 After persistence foundations, continue into project list and editor data
 loading work.
