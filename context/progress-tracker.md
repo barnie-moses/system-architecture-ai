@@ -17,6 +17,8 @@ full context.
 - Prisma persistence foundation completed
 - Project API route foundation completed
 - Editor home project data wiring completed
+- Editor home project data wiring re-verified against spec 07
+- Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
 - Context specification finalized
 - System boundaries established
@@ -26,8 +28,8 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after wiring the editor home to real project
-  data from `context/feature-specs/07-wire-editor-home.md`.
+- Continue Phase 1 foundation after verifying the editor home is wired to
+  real project data from `context/feature-specs/07-wire-editor-home.md`.
 
 Immediate priorities:
 
@@ -268,6 +270,44 @@ Notes:
 
 ---
 
+## Editor Home Project Data Wiring
+
+Spec:
+
+- `context/feature-specs/07-wire-editor-home.md`
+
+Completed implementation:
+
+- `/editor` remains a server component route that authenticates with Clerk,
+  fetches owned and shared projects server-side through `listEditorProjectsForUser`,
+  and passes the project lists into `EditorShell`
+- `/editor/[projectId]` fetches the same server-side project lists and passes
+  the active project ID into `EditorShell`
+- `hooks/use-project-actions.ts` owns create, rename, and delete dialog state
+  plus client-side project mutation calls
+- Create generates a slugified room ID with a short suffix, sends it as the
+  project ID to `POST /api/projects`, and navigates to the new workspace so the
+  project ID and room ID remain aligned
+- Rename calls `PATCH /api/projects/[projectId]` and refreshes the route on
+  success
+- Delete calls `DELETE /api/projects/[projectId]`, redirects to `/editor` when
+  deleting the active workspace, and refreshes otherwise
+- Sidebar and dialogs consume real project data and display project names,
+  room IDs, rename prefill state, delete target names, and create room ID
+  previews
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+Notes:
+
+- No additional implementation changes were required during this verification
+  pass because the spec behavior was already present.
+
+---
+
 ## Prisma Persistence Foundation
 
 Spec:
@@ -280,7 +320,7 @@ Completed implementation:
   - Defines `ProjectStatus` enum with `DRAFT` and `ARCHIVE`
   - Defines `Project` with Clerk owner ID, name, optional description,
     status, future canvas blob path, timestamps, and collaborator relation
-  - Defines `ProjectCollborators` with cascade project relation,
+  - Defines `ProjectCollaborators` with cascade project relation,
     collaborator email, creation timestamp, unique project/email constraint,
     and required indexes
 - Added `lib/prisma.ts`
@@ -304,8 +344,41 @@ Verification:
 
 Notes:
 
-- The Prisma spec used the names `canvasJasonPath` and
-  `ProjectCollborators`; the implementation preserves those names exactly.
+- The Prisma spec used the name `canvasJsonPath` and
+  `ProjectCollaborators`; the implementation preserves those names exactly.
+
+---
+
+## Prisma Project Schema Drift Repair
+
+Completed implementation:
+
+- Updated the pending `20260522210000_fix_project_collaborators` migration to
+  repair early project-model schema drift safely
+- The migration now renames an existing `Project.canvasJasonPath` column to
+  `Project.canvasJsonPath` when present, otherwise adds `Project.canvasJsonPath`
+  if the column is missing
+- Preserved the existing repair for renaming `ProjectCollborators` to
+  `ProjectCollaborators`
+- Applied the pending migration to the configured PostgreSQL database with
+  `npx prisma migrate deploy`
+- Updated `lib/prisma.ts` to normalize legacy PostgreSQL SSL modes
+  (`prefer`, `require`, and `verify-ca`) to `verify-full` before initializing
+  the `pg` adapter, preserving the current security behavior while removing
+  the runtime warning
+
+Verification:
+
+- `npx prisma migrate status` reports the database schema is up to date
+- Direct Prisma read selecting `Project.canvasJsonPath` succeeded without the
+  PostgreSQL SSL mode warning
+- `npm run lint` passed
+- `npm run build` passed
+
+Notes:
+
+- The Clerk development-key warning can still appear in local development and
+  is expected until production Clerk keys are configured.
 
 ---
 
@@ -313,14 +386,14 @@ Notes:
 
 Spec:
 
-- `context/feature-specs/06-preoject-api.md`
+- `context/feature-specs/06-project-api.md`
 
 Completed implementation:
 
 - Added `lib/projects.ts`
   - Centralizes project API validation helpers
   - Reads JSON request bodies safely, including empty bodies
-  - Defaults missing create names to `Untiled Project`
+  - Defaults missing create names to `Untitled Project`
   - Provides Prisma-backed project list, create, owner-only rename, and
     owner-only delete helpers
 - Added `app/api/projects/route.ts`
@@ -439,7 +512,7 @@ Status:
 - Clerk authentication setup completed
 - UI-only project dialogs and sidebar project actions completed with mock data
 - Prisma foundation from `context/feature-specs/05-prisma.md` completed
-- Project API routes from `context/feature-specs/06-preoject-api.md`
+- Project API routes from `context/feature-specs/06-project-api.md`
   completed
 - Editor home wiring from `context/feature-specs/07-wire-editor-home.md`
   completed

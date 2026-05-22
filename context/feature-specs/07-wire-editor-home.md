@@ -6,11 +6,11 @@ The editor home page is server component.
 
 Fetch owned and shared projects server-side using the existing project data and helper and pass both list to the sidebar.
 
-No client-side fectching for initial load.
+No client-side fetching for initial load.
 
 ### `Use Project Actions`
 
-Create a hook in the `hooks/` that manages dialo state and project mutations
+Create a hook in the `hooks/` that manages dialog state and project mutations
 
 **Create**
 
@@ -38,7 +38,7 @@ The project ID and Liveblocks room ID should stay aligned.
 
 ### Wiring
 
-Connect the hool to the sidebar and dialogs.
+Connect the hook to the sidebar and dialogs.
 
 - create dialog shows room ID preview
 - rename dialog pre-fills current name

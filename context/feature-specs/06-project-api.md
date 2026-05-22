@@ -7,7 +7,7 @@ Create REST endpoints for:
 - `GET /api/projects`, list current user's projects
 - `POST /api/projects`, create project
 - `PATCH /api/projects/[projectId]`, rename project
-- `DELETE /api/projects[projectId]`, delete project
+- `DELETE /api/projects/[projectId]`, delete project
 
 
 ## Rules
@@ -16,7 +16,7 @@ Use the authenticated Clerk user ID as `OwnerId`.
 
 When creating:
 
-- default missing project name to `Untiled Project`
+- default missing project name to `Untitled Project`
 - use the schema's existing ID strategy, do not add sequential IDs
 
 Security:

@@ -10,11 +10,11 @@ Add `Project`:
 - name
 - optional descriptions
 - status enum: `DRAFT`, `ARCHIVE`
-- `canvasJasonPath` for future convas blob storage
+- `canvasJsonPath` for future canvas blob storage
 - timestamps
 - indexes on owner ID and Creation date
 
-Add `ProjectCollborators`:
+Add `ProjectCollaborators`:
 - project relation with cascade delete
 - collaborator email
 - creation timestamp
@@ -32,7 +32,7 @@ Branch by `DATABASE_URL`:
 - if it starts with. `prisma+postgres://`, use Accelerate
 - otherwise use direct `@prisma/adapter-pg`
 
-Cache the clinet on the `global` in development for hot reloads.
+Cache the client on the `global` in development for hot reloads.
 
 ## Migration
 

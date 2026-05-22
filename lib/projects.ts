@@ -5,7 +5,7 @@ import type {
   ProjectOwnership,
 } from "@/types/projects";
 
-export const DEFAULT_PROJECT_NAME = "Untiled Project";
+export const DEFAULT_PROJECT_NAME = "Untitled Project";
 
 const projectSelect = {
   id: true,
@@ -13,7 +13,7 @@ const projectSelect = {
   name: true,
   description: true,
   status: true,
-  canvasJasonPath: true,
+  canvasJsonPath: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -186,7 +186,7 @@ export async function listEditorProjectsForUser(
             ownerId: {
               not: ownerId,
             },
-            collborators: {
+            collaborators: {
               some: {
                 email: {
                   in: normalizedEmails,

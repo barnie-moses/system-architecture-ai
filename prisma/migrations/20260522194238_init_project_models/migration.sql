@@ -8,7 +8,7 @@ CREATE TABLE "Project" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "status" "ProjectStatus" NOT NULL DEFAULT 'DRAFT',
-    "canvasJasonPath" TEXT,
+    "canvasJsonPath" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -16,13 +16,13 @@ CREATE TABLE "Project" (
 );
 
 -- CreateTable
-CREATE TABLE "ProjectCollborators" (
+CREATE TABLE "ProjectCollaborators" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ProjectCollborators_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ProjectCollaborators_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -32,13 +32,13 @@ CREATE INDEX "Project_ownerId_idx" ON "Project"("ownerId");
 CREATE INDEX "Project_createdAt_idx" ON "Project"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "ProjectCollborators_email_idx" ON "ProjectCollborators"("email");
+CREATE INDEX "ProjectCollaborators_email_idx" ON "ProjectCollaborators"("email");
 
 -- CreateIndex
-CREATE INDEX "ProjectCollborators_projectId_createdAt_idx" ON "ProjectCollborators"("projectId", "createdAt");
+CREATE INDEX "ProjectCollaborators_projectId_createdAt_idx" ON "ProjectCollaborators"("projectId", "createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ProjectCollborators_projectId_email_key" ON "ProjectCollborators"("projectId", "email");
+CREATE UNIQUE INDEX "ProjectCollaborators_projectId_email_key" ON "ProjectCollaborators"("projectId", "email");
 
 -- AddForeignKey
-ALTER TABLE "ProjectCollborators" ADD CONSTRAINT "ProjectCollborators_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProjectCollaborators" ADD CONSTRAINT "ProjectCollaborators_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -35,20 +35,7 @@ prisma migrate status
 ```
 
 Output example (Up to date):
-```
-Database schema is up to date!
-```
-
-Output example (Pending):
-```
-Following migration have not yet been applied:
-  20240115120000_add_user
-
-To apply migrations in development, run:
-  prisma migrate dev
-
-To apply migrations in production, run:
-  prisma migrate deploy
+Output example (Up to date):
 ```
 
 ## When to Use
