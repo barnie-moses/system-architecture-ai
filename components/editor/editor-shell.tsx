@@ -23,8 +23,10 @@ export function EditorShell({
   sharedProjects,
 }: EditorShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const [isAiSidebarOpen, setIsAiSidebarOpen] = React.useState(true);
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = React.useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] =
+    React.useState(false);
   const projectActions = useProjectActions({ activeProjectId });
   const allProjects = [...ownedProjects, ...sharedProjects];
   const activeProject = allProjects.find(
@@ -42,6 +44,7 @@ export function EditorShell({
         onAiSidebarToggle={() => setIsAiSidebarOpen((isOpen) => !isOpen)}
         onShareClick={() => setIsShareDialogOpen(true)}
         onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
+        onTemplatesClick={() => setIsTemplatesModalOpen(true)}
       />
       <ProjectSidebar
         activeProjectId={activeProjectId}
@@ -57,19 +60,23 @@ export function EditorShell({
       {activeProject ? (
         <main className="relative flex min-h-0 flex-1 overflow-hidden bg-base">
           <section className="min-w-0 flex-1 bg-base">
-            <BaseCanvas roomId={activeProject.id} />
+            <BaseCanvas
+              isTemplatesModalOpen={isTemplatesModalOpen}
+              roomId={activeProject.id}
+              onTemplatesModalOpenChange={setIsTemplatesModalOpen}
+            />
           </section>
 
           <aside
             aria-hidden={!isAiSidebarOpen}
             className={cn(
-              "absolute bottom-0 right-0 top-0 z-20 hidden w-80 overflow-hidden border-l bg-surface shadow-2xl transition-[opacity,transform,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:block",
+              "absolute bottom-2 right-2 top-2 z-20 hidden w-96 overflow-hidden rounded-3xl border bg-surface shadow-2xl transition-[opacity,transform,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:block",
               isAiSidebarOpen
                 ? "translate-x-0 border-surface-border opacity-100"
-                : "pointer-events-none translate-x-full border-transparent opacity-0"
+                : "pointer-events-none translate-x-[calc(100%+1rem)] border-transparent opacity-0"
             )}
           >
-            <div className="flex h-full w-80 flex-col">
+            <div className="flex h-full w-full flex-col">
               <div className="flex h-14 shrink-0 items-center border-b border-surface-border px-4">
                 <h2 className="text-sm font-semibold text-copy-primary">
                   AI Assistant

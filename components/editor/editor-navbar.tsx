@@ -3,6 +3,7 @@
 import * as React from "react";
 import { UserButton } from "@clerk/nextjs";
 import {
+  LayoutTemplate,
   PanelLeftClose,
   PanelLeftOpen,
   Share2,
@@ -20,6 +21,7 @@ type EditorNavbarProps = React.ComponentProps<"header"> & {
   onAiSidebarToggle?: () => void;
   onShareClick?: () => void;
   onSidebarToggle?: () => void;
+  onTemplatesClick?: () => void;
 };
 
 export function EditorNavbar({
@@ -30,6 +32,7 @@ export function EditorNavbar({
   onAiSidebarToggle,
   onShareClick,
   onSidebarToggle,
+  onTemplatesClick,
   className,
   ...props
 }: EditorNavbarProps) {
@@ -43,11 +46,17 @@ export function EditorNavbar({
       )}
       {...props}
     >
-      <div className="flex shrink-0 items-center justify-start">
+      <div className="flex min-w-0 shrink-0 items-center justify-start gap-3">
         <Button
           type="button"
           variant="ghost"
           size="icon"
+          className={cn(
+            "rounded-xl border transition-[background-color,border-color,color,box-shadow]",
+            isSidebarOpen
+              ? "border-brand bg-accent-dim text-brand shadow-[0_0_0_1px_var(--accent-primary)] hover:bg-accent-dim hover:text-brand"
+              : "border-transparent text-copy-secondary hover:border-surface-border hover:bg-subtle hover:text-copy-primary"
+          )}
           aria-label={
             isSidebarOpen ? "Close project sidebar" : "Open project sidebar"
           }
@@ -56,15 +65,20 @@ export function EditorNavbar({
         >
           <SidebarIcon className="h-5 w-5" />
         </Button>
-      </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center px-4">
         {projectName ? (
-          <p className="truncate text-sm font-medium text-copy-primary">
-            {projectName}
-          </p>
+          <div className="min-w-0 leading-none">
+            <p className="truncate text-sm font-semibold text-copy-primary">
+              {projectName}
+            </p>
+            <p className="mt-1 truncate text-xs font-medium text-copy-faint">
+              Workspace
+            </p>
+          </div>
         ) : null}
       </div>
+
+      <div className="min-w-0 flex-1" />
 
       <div className="flex shrink-0 items-center justify-end gap-2">
         {showWorkspaceActions ? (
@@ -73,7 +87,18 @@ export function EditorNavbar({
               type="button"
               variant="ghost"
               size="sm"
-              className="gap-2 rounded-xl border border-surface-border bg-base px-3 text-copy-secondary hover:bg-subtle hover:text-copy-primary"
+              className="gap-2 rounded-xl border border-surface-border bg-base/70 px-3 text-copy-primary shadow-[inset_0_0_0_1px_var(--border-subtle)] hover:border-surface-border-subtle hover:bg-subtle hover:text-copy-primary"
+              aria-label="Open starter templates"
+              onClick={onTemplatesClick}
+            >
+              <LayoutTemplate className="h-4 w-4" />
+              Templates
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-2 rounded-xl border border-surface-border bg-base/70 px-3 text-copy-primary shadow-[inset_0_0_0_1px_var(--border-subtle)] hover:border-surface-border-subtle hover:bg-subtle hover:text-copy-primary"
               aria-label="Share workspace"
               onClick={onShareClick}
             >
@@ -82,8 +107,14 @@ export function EditorNavbar({
             </Button>
             <Button
               type="button"
+              variant="ghost"
               size="sm"
-              className="gap-2 rounded-xl bg-brand px-3 text-primary-foreground hover:bg-brand/80"
+              className={cn(
+                "gap-2 rounded-xl border px-3 transition-[background-color,border-color,color,box-shadow]",
+                isAiSidebarOpen
+                  ? "border-brand bg-accent-dim text-brand shadow-[0_0_0_1px_var(--accent-primary)] hover:bg-accent-dim hover:text-brand"
+                  : "border-surface-border bg-base/70 text-copy-primary shadow-[inset_0_0_0_1px_var(--border-subtle)] hover:border-surface-border-subtle hover:bg-subtle hover:text-copy-primary"
+              )}
               aria-label={
                 isAiSidebarOpen ? "Close AI sidebar" : "Open AI sidebar"
               }

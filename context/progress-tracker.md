@@ -23,7 +23,27 @@ full context.
 - Liveblocks room lifecycle and auth foundation completed
 - Base Liveblocks-backed React Flow canvas completed
 - Bottom shape panel completed
+- Node shape rendering and shape drag preview completed
+- Canvas React Flow attribution/minimap removal and shape drop positioning fix
+  completed
+- Canvas shape drop origin correction completed
+- Canvas shape default size reduction completed
 - Editor sidebar transition refinement completed
+- Node resizing and inline label editing completed
+- Four-sided node connection handles completed
+- Shape-aware resize minimums and connection handle geometry correction
+  completed
+- Connection handles hidden until node selection or hover completed
+- Selected-node color toolbar completed
+- Custom canvas edge behavior completed
+- Canvas ergonomics control bar and keyboard shortcuts completed
+- Canvas ergonomics implementation re-verified against spec 17
+- Starter template library and import modal completed from spec 18
+- Starter templates navbar placement and AI button active styling completed
+- Workspace project title placement aligned beside navbar panel toggle
+- Project sidebar rounded floating panel and active sidebar toggle styling
+  completed
+- AI sidebar rounded floating panel styling completed
 - Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
 - Context specification finalized
@@ -34,16 +54,116 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after completing the bottom shape panel from
-  `context/feature-specs/12-shape-panel.md`.
+- Continue Phase 1 foundation after completing starter templates from
+  `context/feature-specs/18-starter-template.md`.
 
 Immediate priorities:
 
 1. Configure remaining environment validation
 2. Add blob-backed canvas snapshot persistence when specified
 3. Begin Trigger.dev workflow foundations when specified
-4. Add additional canvas controls, shape-specific visuals, or persistence only
-   when specified
+4. Add additional canvas behavior, editing, or persistence only when specified
+
+---
+
+## Starter Templates
+
+Spec:
+
+- `context/feature-specs/18-starter-template.md`
+
+Completed implementation:
+
+- Added `components/editor/starter-templates.ts`
+  - Exports the `CanvasTemplate` type
+  - Exports `CANVAS_TEMPLATES`
+  - Includes microservices, CI/CD pipeline, and event-driven system templates
+  - Uses shared canvas node and edge types, canonical canvas element types,
+    shared shape sizes, and the existing node color palette
+- Added `components/editor/starter-templates-modal.tsx`
+  - Renders a dialog with template cards in a scrollable responsive grid
+  - Shows each template name and description
+  - Provides an import button for each template
+  - Calls `onImport` with the selected template and then closes the dialog
+  - Draws fixed-viewport lightweight SVG previews by calculating bounds from
+    template node positions, drawing simple center-to-center edge lines, and
+    rendering nodes from their shape and color data without React Flow
+- Wired the active workspace navbar to open the starter templates modal with a
+  top-right Templates button matching the Share/AI action group
+- Removed the Templates action from the bottom canvas control bar
+- Imported templates are cloned with unique node and edge IDs before being
+  added to the Liveblocks-backed React Flow canvas
+- The canvas fits the view after a template import
+- Updated the AI navbar button to render as a transparent workspace action when
+  inactive and use highlighted brand styling only while the AI sidebar is open
+- The AI sidebar now starts closed so the button begins in its inactive state
+- Moved the active project name from the centered navbar slot to the left
+  navbar identity area immediately beside the project sidebar toggle
+- Added the muted `Workspace` subtitle under the active project name to match
+  the screenshot reference
+- Updated the left Projects sidebar to use a rounded floating overlay shell
+  with clipped rounded corners, tighter viewport margins, and a wider panel
+  matching the screenshot treatment
+- Updated the left sidebar toggle button to use the same transparent inactive
+  and highlighted active behavior as the right-side AI sidebar control
+- Updated the AI sidebar to open as a rounded floating panel with inset margins,
+  clipped rounded corners, full border, and matching slide-out spacing
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Re-verified after navbar and AI button refinement on 2026-05-23:
+  - `npm run lint` passed
+  - `npm run build` passed
+- Re-verified after project title placement update on 2026-05-23:
+  - `npm run lint` passed
+  - `npm run build` passed
+- Re-verified after project sidebar rounded shell update on 2026-05-23:
+  - `npm run lint` passed
+  - `npm run build` passed
+- Re-verified after AI sidebar rounded shell update on 2026-05-23:
+  - `npm run lint` passed
+  - `npm run build` passed
+- Existing dev server is running on `http://localhost:3000`
+- Signed-out `/editor` smoke check redirects through Clerk protection as
+  expected
+- Browser automation could not be driven because the in-app browser JavaScript
+  execution tool was not exposed in this session
+
+---
+
+## Canvas Ergonomics
+
+Spec:
+
+- `context/feature-specs/17-canvas-ergonomics.md`
+
+Completed implementation:
+
+- Added a bottom-left floating canvas control bar above the shape panel
+  with zoom out, fit view, zoom in, undo, and redo controls
+- Zoom controls call the active React Flow instance with short animated
+  viewport transitions
+- Undo and redo are wired to Liveblocks history through `useUndo`,
+  `useRedo`, `useCanUndo`, and `useCanRedo`
+- Undo and redo buttons are disabled and visually dimmed when no matching
+  Liveblocks history entry is available
+- Added `hooks/useKeyboardShortcuts.ts`
+  - `+` and `=` zoom in
+  - `-` zooms out
+  - `Cmd/Ctrl + Z` triggers undo
+  - `Cmd/Ctrl + Shift + Z` and `Cmd/Ctrl + Y` trigger redo
+  - Shortcut handling skips inputs, textareas, selects, contenteditable
+    elements, and role-textbox fields
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Re-verified on 2026-05-23:
+  - `npm run lint` passed
+  - `npm run build` passed
 
 ---
 
@@ -676,8 +796,7 @@ Completed implementation:
   - Adds Liveblocks error handling and a canvas connection fallback
   - Wires `useLiveblocksFlow` with suspense and empty initial nodes/edges
   - Passes synced nodes, edges, and change handlers into `ReactFlow`
-  - Enables loose connection behavior, `fitView`, `MiniMap`, and a dot-pattern
-    background
+  - Enables loose connection behavior, `fitView`, and a dot-pattern background
 - Updated `components/editor/editor-shell.tsx`
   - Replaced the workspace canvas placeholder with `BaseCanvas`
   - Kept the existing workspace shell, navbar, share dialog, and AI sidebar
@@ -748,6 +867,294 @@ Status:
   completed
 - Base canvas from `context/feature-specs/11-base-canvas.md` completed
 - Shape panel from `context/feature-specs/12-shape-panel.md` completed
+- Node shape rendering from `context/feature-specs/13-node-shape.md`
+  completed
+- Current canvas UI issue from `context/feature-specs/00-current-issue.md`
+  completed
+- Canvas shape default size reduction completed
+- Node color toolbar from `context/feature-specs/15-nodes-color-toolbar.md`
+  completed
+
+---
+
+## Canvas Shape Size Reduction
+
+Completed implementation:
+
+- Reduced the default dimensions in `types/canvas.ts` for all draggable canvas
+  shapes
+- Kept the existing bottom shape toolbar layout and available shapes unchanged
+- Preserved the existing shape proportions:
+  - Rectangles and pills remain wider than tall
+  - Circles and diamonds remain square
+  - Cylinders and hexagons remain compact but readable
+- Because the drag payload uses `CANVAS_SHAPE_DEFAULT_SIZES`, both the drag
+  preview and the dropped canvas nodes now use the smaller dimensions
+
+Architecture notes:
+
+- Scope remained in the shared canvas type contract.
+- No API routes, database schema, blob storage, Trigger.dev workflows,
+  persistence behavior, toolbar layout changes, or shape inventory changes were
+  introduced.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
+## Canvas UI Drop Fix
+
+Spec:
+
+- `context/feature-specs/00-current-issue.md`
+
+Completed implementation:
+
+- Removed the React Flow minimap/radar from the canvas surface without adding
+  another overview widget
+- Hid React Flow's default top-left attribution label shown in the current
+  issue screenshot
+- Updated shape drop positioning so the created node is centered on the drop
+  pointer, matching the drag preview behavior
+- Converted the clamped screen-space top-left position through React Flow's
+  `screenToFlowPosition()` so zoom and pan are accounted for
+- Clamped edge drops to the visible canvas bounds so nodes do not unexpectedly
+  jump outside the viewport
+- Refined drop positioning to use React Flow node center origin
+  (`origin: [0.5, 0.5]`) so the stored node position is the converted drop
+  point rather than a manually offset top-left coordinate
+- Clamped the dropped node center in screen space before converting to flow
+  coordinates, preserving correct placement under pan and zoom while keeping
+  new nodes visible
+- Kept the bottom shape toolbar, available shapes, drag payloads, and node
+  creation contract unchanged
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component.
+- No API routes, database schema, blob storage, Trigger.dev workflows, or
+  persistence behavior were added.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- The spec-referenced screenshot path `context/screenshots/03-image-spec14.png`
+  was not present; `context/screenshots/03-image-spev14.png` was used as the
+  available visual reference.
+
+---
+
+## Node Shape Rendering
+
+Spec:
+
+- `context/feature-specs/13-node-shape.md`
+
+Completed implementation:
+
+- Replaced the placeholder custom canvas node renderer with shape-specific
+  rendering connected to the existing Liveblocks-backed React Flow node state
+- CSS-rendered rectangle, pill, and circle nodes using the existing node color
+  palette and token-based borders
+- SVG-rendered diamond, hexagon, and cylinder nodes that scale with the stored
+  React Flow node dimensions
+- Kept node borders subtle at rest and brighter when selected
+- Added a cursor-following drag ghost for shape panel drags
+  - Uses the dragged shape type and default size from the existing drag payload
+  - Hides after drop or drag cancellation
+  - Does not change the existing dropped-node creation behavior
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component.
+- No API routes, database schema, blob storage, Trigger.dev workflows, or
+  persistence behavior were added.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Browser automation could not be driven because the required in-app browser
+  control runtime was unavailable in this session.
+
+---
+
+## Node Editing
+
+Spec:
+
+- `context/feature-specs/14-node-editing.md`
+
+Completed implementation:
+
+- Added resize controls to selected canvas nodes with `NodeResizer`
+  - Resize handles and guide lines use existing semantic CSS variables
+  - Minimum node size is enforced at 80 by 48 pixels
+  - Resize changes flow through React Flow node dimension changes already
+    synchronized by `useLiveblocksFlow`
+- Added centered inline label editing for canvas nodes
+  - Double-clicking the center label area opens a textarea over the label
+  - Empty labels show a centered placeholder in the same label position
+  - Label updates are written as users type via `reactFlow.updateNodeData`
+  - Editing closes on blur or `Escape`
+  - Text editing interactions stop propagation and use `nodrag`, `nopan`, and
+    `nowheel` classes so the canvas does not drag or pan while editing
+  - Editing textarea chrome is visually transparent so selected-node styling
+    remains only around the actual node shape
+- Selected node shape outlines, resize guide lines, and resize handles use the
+  light grey text-secondary token instead of the brand cyan accent
+- Kept existing shape rendering, shape panel layout, drag preview behavior, and
+  dropped-node creation behavior unchanged
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component.
+- No API routes, database schema, blob storage, Trigger.dev workflows, or
+  persistence behavior were added.
+- Collaborative canvas state remains owned by Liveblocks through the existing
+  React Flow controlled node update path.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- A dev server is already running for this project on `http://localhost:3000`
+- Signed-out `/editor` smoke check reaches Clerk protection as expected
+- Browser automation could not be driven because the in-app browser control
+  runtime was unavailable in this session.
+
+---
+
+## Node Connection Handles
+
+Completed implementation:
+
+- Replaced the two top/bottom-only node connection points with four connection
+  handles on every canvas node:
+  - Top
+  - Right
+  - Bottom
+  - Left
+- Handles are positioned by React Flow against the node wrapper, so they remain
+  attached to the resized node bounds as width and height change
+- Resize minimums are now shape-aware so nodes cannot be shrunk below a size
+  where connection handles visually detach from the shape
+- Cylinder and hexagon handles use shape-specific offsets so their connection
+  points sit on the drawn SVG geometry rather than the outer wrapper bounds
+- Connection handles remain mounted for edge positioning but are visually hidden
+  and non-interactive until the node is selected or hovered
+- Kept `ConnectionMode.Loose`, allowing the four handles to be used naturally
+  for drawing connections between shapes
+- Kept handle styling token-based and consistent with the dark canvas UI
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component.
+- No API routes, database schema, blob storage, Trigger.dev workflows, or
+  persistence behavior were added.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
+## Node Color Toolbar
+
+Spec:
+
+- `context/feature-specs/15-nodes-color-toolbar.md`
+
+Completed implementation:
+
+- Added a selected-node floating color toolbar with React Flow `NodeToolbar`
+  positioned above the node with a small offset
+- Rendered one compact swatch per predefined `NODE_COLORS` background/text
+  color pair from `types/canvas.ts`
+- Active swatches use the paired text color for border and a tight selected
+  glow so the current color pair is clear
+- Hovered swatches show a controlled glow based on the paired text color
+- Swatch selection updates the node's `data.color` through
+  `reactFlow.updateNodeData`, so the existing Liveblocks-backed React Flow
+  state updates immediately and remains collaborative
+- Existing node rendering continues deriving both fill and text color from the
+  selected palette entry, so background and label color update together
+- Toolbar interactions use `nodrag`, `nopan`, and stopped pointer/click/wheel
+  propagation so choosing a swatch does not drag nodes or pan the canvas
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component.
+- No API routes, database schema, blob storage, Trigger.dev workflows, server
+  calls, selection logic changes, drag/drop behavior changes, or full color
+  picker behavior were added.
+- The predefined color palette remains centralized in `types/canvas.ts` as
+  documented by `context/ui-context.md`.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Dev server started successfully on `http://localhost:3000`
+- Browser automation could not be driven because the required in-app browser
+  JavaScript execution tool was not exposed in this session.
+
+---
+
+## Custom Edge Behavior
+
+Spec:
+
+- `context/feature-specs/16-edge-behavior.md`
+
+Completed implementation:
+
+- Added a custom `canvasEdge` renderer for React Flow edges
+  - Uses `getSmoothStepPath()` for right-angle routing
+  - Uses the returned label coordinates from `getSmoothStepPath()` for inline
+    label placement
+  - Keeps visible edge strokes slim while using a wider invisible interaction
+    path for easier hover and click targeting
+  - Dims edges at rest and brightens them when hovered, selected, or being
+    edited
+- Updated default edge options for new connections
+  - New edges use the `canvasEdge` type
+  - New edges include empty label data
+  - New edges render with a light rounded stroke and a closed arrowhead marker
+- Added inline edge label editing
+  - Double-clicking an edge starts label editing
+  - The edge label input is rendered through `EdgeLabelRenderer`
+  - The input grows based on the current label text length
+  - Label edits update edge `data.label` through React Flow edge data updates
+    so the existing Liveblocks-backed canvas edge state remains collaborative
+- Updated canvas edge typing so `CanvasEdgeData` explicitly owns a string
+  `label`
+- Adjusted node connection handle styling to the spec's subtle white-dot,
+  dark-border treatment while preserving the existing four-sided handle
+  behavior
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component and shared canvas
+  types.
+- No API routes, database schema, blob storage, Trigger.dev workflows, server
+  calls, or persistence behavior were added.
+- Existing edges are normalized at render time to the custom canvas edge type so
+  older room state still renders through the new custom edge renderer.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Local dev server on `http://localhost:3000` responds for `/editor` and
+  redirects signed-out requests through Clerk protection
+- Browser automation could not be driven because the required in-app browser
+  JavaScript execution tool was not exposed in this session
 
 ---
 
@@ -1040,6 +1447,9 @@ Completed implementation foundations:
 - Server-gated workspace route with share dialog and collaborator management
 - Liveblocks room lifecycle and auth route foundation
 - Base Liveblocks-backed React Flow canvas foundation
+- Canvas shape rendering, drag preview, resizing, and inline label editing
+- Selected-node canvas color toolbar
+- Custom canvas edge rendering and inline edge label editing
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -1078,7 +1488,7 @@ Next implementation session should begin with:
 1. Environment validation
 2. Blob-backed canvas snapshot persistence, if specified
 3. Trigger.dev workflow foundations, if specified
-4. Canvas controls or custom rendering, if specified
+4. Additional canvas behavior, editing, or persistence only when specified
 
 Project metadata persistence, editor home wiring, workspace shell access,
 collaborator sharing, Liveblocks room auth, and the base canvas are complete

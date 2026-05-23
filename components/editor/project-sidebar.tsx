@@ -134,7 +134,7 @@ export function ProjectSidebar({
       <aside
         aria-hidden={!isVisible}
         className={cn(
-          "fixed bottom-4 left-4 top-16 z-40 flex w-80 max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-surface-border bg-surface shadow-2xl will-change-transform transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "fixed bottom-2 left-2 top-[calc(3.5rem+0.5rem)] z-40 flex w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-3xl border border-surface-border bg-surface shadow-2xl will-change-transform transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           isVisible
             ? "translate-x-0 opacity-100"
             : "pointer-events-none -translate-x-[calc(100%+2rem)] opacity-0",
