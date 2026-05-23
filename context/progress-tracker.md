@@ -20,6 +20,9 @@ full context.
 - Editor home project data wiring re-verified against spec 07
 - Editor workspace shell completed
 - Share dialog and collaborator management completed
+- Liveblocks room lifecycle and auth foundation completed
+- Base Liveblocks-backed React Flow canvas completed
+- Bottom shape panel completed
 - Editor sidebar transition refinement completed
 - Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
@@ -31,15 +34,16 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after completing the share dialog and
-  collaborator management from `context/feature-specs/09-share-dialog.md`.
+- Continue Phase 1 foundation after completing the bottom shape panel from
+  `context/feature-specs/12-shape-panel.md`.
 
 Immediate priorities:
 
 1. Configure remaining environment validation
-2. Begin Liveblocks room lifecycle foundations when specified
-3. Begin editor canvas data loading and central canvas surface when specified
-4. Add blob-backed canvas snapshot persistence when specified
+2. Add blob-backed canvas snapshot persistence when specified
+3. Begin Trigger.dev workflow foundations when specified
+4. Add additional canvas controls, shape-specific visuals, or persistence only
+   when specified
 
 ---
 
@@ -601,6 +605,102 @@ Notes:
 
 ---
 
+## Liveblocks Setup
+
+Spec:
+
+- `context/feature-specs/10-liveblocks-setup.md`
+
+Completed implementation:
+
+- Added `@liveblocks/node` for server-side room lifecycle and token issuance
+- Updated `liveblocks.config.ts`
+  - Defines presence with cursor position and `isThinking`
+  - Defines `UserMeta` with user ID, display name, avatar URL, and cursor
+    color metadata
+  - Replaced placeholder empty object types with strict empty records/events
+- Added `lib/liveblocks.ts`
+  - Provides a cached Liveblocks Node client using `LIVEBLOCKS_SECRET_KEY`
+  - Provides deterministic Clerk user ID to cursor color mapping from a fixed
+    palette
+  - Parses Liveblocks auth payloads
+  - Ensures project rooms exist through `getOrCreateRoom` with private default
+    access
+  - Authorizes a Liveblocks session for exactly the requested project room
+- Added `POST /api/liveblocks-auth`
+  - Requires Clerk authentication through `getCurrentProjectIdentity()`
+  - Reads the Liveblocks `room` payload as the project room ID
+  - Verifies access with `getAccessibleProjectByRoomId()`
+  - Returns `403` when the authenticated user cannot access the project
+  - Creates the Liveblocks room only when missing
+  - Returns a Liveblocks token containing display name, avatar URL, and
+    deterministic cursor color
+
+Architecture notes:
+
+- Project ID and Liveblocks room ID remain aligned.
+- The route remains a thin API boundary and delegates Liveblocks behavior to
+  `lib/liveblocks.ts`.
+- Liveblocks room token issuance is gated by the existing project access
+  helper before any room or token operation runs.
+- Rooms are private by default; user access is granted through the returned
+  room-scoped session token.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Build output includes `/api/liveblocks-auth`
+
+---
+
+## Base Collaborative Canvas
+
+Spec:
+
+- `context/feature-specs/11-base-canvas.md`
+
+Completed implementation:
+
+- Added `types/canvas.ts`
+  - Defines shared `CanvasNode` and `CanvasEdge` types
+  - Defines the `canvasNode` and `canvasEdge` custom type identifiers
+  - Defines node data with `label`, `color`, and `shape`
+  - Defines the documented `NODE_COLORS` palette and default node color
+- Added `components/editor/base-canvas.tsx`
+  - Client-side Liveblocks and React Flow canvas wrapper
+  - Uses `LiveblocksProvider` with `/api/liveblocks-auth`
+  - Uses `RoomProvider` with the current project room ID
+  - Initializes presence with `cursor: null` and `isThinking: false`
+  - Uses `ClientSideSuspense` with a simple loading state
+  - Adds Liveblocks error handling and a canvas connection fallback
+  - Wires `useLiveblocksFlow` with suspense and empty initial nodes/edges
+  - Passes synced nodes, edges, and change handlers into `ReactFlow`
+  - Enables loose connection behavior, `fitView`, `MiniMap`, and a dot-pattern
+    background
+- Updated `components/editor/editor-shell.tsx`
+  - Replaced the workspace canvas placeholder with `BaseCanvas`
+  - Kept the existing workspace shell, navbar, share dialog, and AI sidebar
+    composition intact
+- Updated `app/globals.css`
+  - Imports React Flow and Liveblocks React Flow styles globally
+
+Architecture notes:
+
+- `/editor/[roomId]` remains a server component page.
+- Liveblocks and React Flow browser interactivity is isolated to the canvas
+  client component.
+- No canvas controls, custom node/edge rendering, persistence, or AI behavior
+  were added.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Build output includes `/editor/[roomId]`
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -644,6 +744,51 @@ Status:
   completed
 - Share dialog and collaborator management from
   `context/feature-specs/09-share-dialog.md` completed
+- Liveblocks setup from `context/feature-specs/10-liveblocks-setup.md`
+  completed
+- Base canvas from `context/feature-specs/11-base-canvas.md` completed
+- Shape panel from `context/feature-specs/12-shape-panel.md` completed
+
+---
+
+## Shape Panel
+
+Spec:
+
+- `context/feature-specs/12-shape-panel.md`
+
+Completed implementation:
+
+- Added canvas shape constants and default sizes in `types/canvas.ts`
+  - Shapes: rectangle, diamond, circle, pill, cylinder, and hexagon
+  - Default sizes keep rectangles and pills wider than tall, circles square,
+    and diamonds large enough for labels
+- Updated `components/editor/base-canvas.tsx`
+  - Wraps the synced React Flow canvas in `ReactFlowProvider`
+  - Adds a bottom-center floating pill toolbar with draggable icon buttons
+  - Writes drag payloads with the shape name and default size
+  - Handles canvas dragover and drop events
+  - Converts dropped screen coordinates to React Flow canvas coordinates with
+    `screenToFlowPosition`
+  - Creates new `canvasNode` nodes with an empty label, default node color,
+    dragged shape value, default dimensions, and IDs generated from shape name,
+    timestamp, and a counter
+  - Adds a basic custom canvas node renderer that displays every shape as a
+    simple bordered rectangle with centered label text
+
+Architecture notes:
+
+- Scope remained inside the client-side canvas component and shared canvas
+  types.
+- No API, database, blob storage, Trigger.dev, or persistence strategy changes
+  were introduced.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Local dev server starts on `http://localhost:3000`
+- Signed-out `/editor` smoke check reaches Clerk protection as expected
 
 ---
 
@@ -668,10 +813,14 @@ Status:
   completed
 - Share dialog from `context/feature-specs/09-share-dialog.md` opens from the
   workspace navbar and uses owner-aware collaborator management APIs
+- Liveblocks auth route and room lifecycle helpers are available for future
+  canvas connection work
 - Project sidebar and right AI sidebar transitions now animate smoothly instead
   of appearing abruptly
-- Central canvas logic, Liveblocks room issuance, and AI chat remain pending
-  future implementation specs
+- Base Liveblocks-backed React Flow canvas from
+  `context/feature-specs/11-base-canvas.md` completed
+- Bottom shape panel from `context/feature-specs/12-shape-panel.md` completed
+- AI chat remains pending future implementation specs
 
 ---
 
@@ -682,9 +831,9 @@ Status:
 Priority order:
 
 1. Configure environment validation
-2. Begin Liveblocks room lifecycle foundations
-3. Begin editor canvas data loading and central canvas surface
-4. Add blob-backed canvas snapshot persistence when specified
+2. Add blob-backed canvas snapshot persistence when specified
+3. Begin Trigger.dev workflow foundations when specified
+4. Add canvas controls, custom rendering, or persistence only when specified
 
 ---
 
@@ -732,7 +881,6 @@ Planned features:
 
 - Final Prisma schema structure for canvas entities beyond the completed
   project metadata foundation
-- Liveblocks room lifecycle strategy
 - Canvas persistence frequency strategy
 - Snapshot versioning approach
 - Trigger.dev workflow partitioning strategy
@@ -890,6 +1038,8 @@ Completed implementation foundations:
 - Server-loaded editor home project lists and API-backed create, rename, and
   delete actions
 - Server-gated workspace route with share dialog and collaborator management
+- Liveblocks room lifecycle and auth route foundation
+- Base Liveblocks-backed React Flow canvas foundation
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -926,11 +1076,12 @@ Must maintain:
 Next implementation session should begin with:
 
 1. Environment validation
-2. Liveblocks room lifecycle foundations, if specified
-3. Central canvas surface implementation, if specified
-4. Blob-backed canvas snapshot persistence, if specified
+2. Blob-backed canvas snapshot persistence, if specified
+3. Trigger.dev workflow foundations, if specified
+4. Canvas controls or custom rendering, if specified
 
-Project metadata persistence, editor home wiring, workspace shell access, and
-collaborator sharing are complete for the current Phase 1 scope.
+Project metadata persistence, editor home wiring, workspace shell access,
+collaborator sharing, Liveblocks room auth, and the base canvas are complete
+for the current Phase 1 scope.
 
 ```
