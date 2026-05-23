@@ -18,6 +18,9 @@ full context.
 - Project API route foundation completed
 - Editor home project data wiring completed
 - Editor home project data wiring re-verified against spec 07
+- Editor workspace shell completed
+- Share dialog and collaborator management completed
+- Editor sidebar transition refinement completed
 - Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
 - Context specification finalized
@@ -28,15 +31,15 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after verifying the editor home is wired to
-  real project data from `context/feature-specs/07-wire-editor-home.md`.
+- Continue Phase 1 foundation after completing the share dialog and
+  collaborator management from `context/feature-specs/09-share-dialog.md`.
 
 Immediate priorities:
 
 1. Configure remaining environment validation
 2. Begin Liveblocks room lifecycle foundations when specified
-3. Begin central canvas surface implementation when specified
-4. Add project collaborator management when specified
+3. Begin editor canvas data loading and central canvas surface when specified
+4. Add blob-backed canvas snapshot persistence when specified
 
 ---
 
@@ -475,6 +478,129 @@ Verification:
 
 ---
 
+## Editor Workspace Shell
+
+Spec:
+
+- `context/feature-specs/08-editor-workspace-shell.md`
+
+Completed implementation:
+
+- Replaced the previous `/editor/[projectId]` workspace segment with
+  `/editor/[roomId]`
+- Added `lib/project-access.ts`
+  - Provides `getCurrentProjectIdentity()` for the current Clerk user ID and
+    primary email
+  - Provides `getAccessibleProjectByRoomId()` for owner-or-collaborator project
+    access checks
+- Added `components/editor/access-denied.tsx`
+  - Centered denied state with a Lock icon, short message, and link back to
+    `/editor`
+- Updated `/editor/[roomId]`
+  - Remains a server component
+  - Redirects unauthenticated users to the sign-in path
+  - Renders `AccessDenied` for missing projects and projects the user cannot
+    access
+  - Loads the editor project lists only after access is verified
+- Updated the editor shell and navbar
+  - Workspace navbar displays the active project name
+  - Workspace navbar exposes a reference-aligned Share pill and AI pill
+  - Sidebar continues highlighting the current room
+  - Central canvas placeholder fills the remaining workspace area
+  - Right sidebar placeholder is present for future AI chat
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Build output includes `/editor/[roomId]`
+
+Notes:
+
+- No real canvas logic, Liveblocks integration, AI chat, or sharing behavior was
+  added for this spec.
+
+---
+
+## Editor Sidebar Transition Refinement
+
+Completed implementation:
+
+- Updated `components/editor/project-sidebar.tsx`
+  - Increased the project sidebar slide/fade duration
+  - Uses a smoother transform easing curve while remaining a floating overlay
+    that does not push editor content
+- Updated `components/editor/editor-shell.tsx`
+  - The right AI sidebar no longer toggles through `display: none` on desktop
+  - The AI sidebar is positioned as an overlay above the editor surface instead
+    of a flex child, so it no longer pushes or resizes the canvas/editor area
+  - The AI sidebar stays mounted and animates opacity, border color, and
+    horizontal offset between open and closed states
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+
+---
+
+## Share Dialog And Collaborator Management
+
+Spec:
+
+- `context/feature-specs/09-share-dialog.md`
+
+Completed implementation:
+
+- Added `types/collaborators.ts`
+  - Defines the serializable collaborator shape returned to the share dialog
+- Added `lib/project-collaborators.ts`
+  - Normalizes and validates collaborator emails
+  - Checks project share access by owner ID or collaborator email
+  - Lists, upserts, and removes `ProjectCollaborators` records with Prisma
+  - Enriches stored collaborator emails through Clerk Backend API user lookup
+  - Falls back to email-only display when Clerk lookup is unavailable or no
+    matching Clerk user exists
+- Added collaborator API routes:
+  - `GET /api/projects/[projectId]/collaborators`
+    - Allows owners and collaborators to view collaborators
+    - Returns `canManage` for owner-only UI behavior
+  - `POST /api/projects/[projectId]/collaborators`
+    - Owner-only invite by email
+    - Stores collaborators by normalized email
+  - `DELETE /api/projects/[projectId]/collaborators/[collaboratorId]`
+    - Owner-only collaborator removal
+- Added `components/editor/share-dialog.tsx`
+  - Opens from the workspace Share button
+  - Owners can invite by email, view enriched collaborator profiles, remove
+    collaborators, and copy the current project link with temporary `Copied!`
+    feedback
+  - Collaborators can view the collaborator list only
+  - Dialog visual treatment was refined to match the reference share modal:
+    header divider, workspace link card, invite card, `People with access`
+    section, access count, owner row, role badges, and compact remove action
+- Updated the editor navbar and shell
+  - The Share button now opens the share dialog for the active workspace
+  - The dialog remains scoped to active project context
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Build output includes:
+  - `/api/projects/[projectId]/collaborators`
+  - `/api/projects/[projectId]/collaborators/[collaboratorId]`
+- Signed-out smoke check to the collaborator API redirects to `/sign-in` via
+  Clerk protection
+
+Notes:
+
+- No local user table was added.
+- No Liveblocks, invitation email delivery, or sharing workflow beyond database
+  collaborator access was added.
+
+---
+
 ## Architecture Context
 
 Completed:
@@ -516,6 +642,8 @@ Status:
   completed
 - Editor home wiring from `context/feature-specs/07-wire-editor-home.md`
   completed
+- Share dialog and collaborator management from
+  `context/feature-specs/09-share-dialog.md` completed
 
 ---
 
@@ -535,9 +663,15 @@ Status:
 - Base editor chrome from `context/feature-specs/02-editor.md` completed
 - Minimal protected `/editor` route added for authenticated redirects
 - `/editor` now server-loads owned and shared projects from Prisma
-- `/editor/[projectId]` exists as the project workspace route
-- Central canvas surface and right properties panel remain pending future
-  implementation specs
+- `/editor/[roomId]` exists as the server-gated project workspace route
+- Editor workspace shell from `context/feature-specs/08-editor-workspace-shell.md`
+  completed
+- Share dialog from `context/feature-specs/09-share-dialog.md` opens from the
+  workspace navbar and uses owner-aware collaborator management APIs
+- Project sidebar and right AI sidebar transitions now animate smoothly instead
+  of appearing abruptly
+- Central canvas logic, Liveblocks room issuance, and AI chat remain pending
+  future implementation specs
 
 ---
 
@@ -548,10 +682,9 @@ Status:
 Priority order:
 
 1. Configure environment validation
-2. Add project collaborator management when specified
-3. Begin Liveblocks room lifecycle foundations
-4. Begin editor canvas data loading and central canvas surface
-5. Add blob-backed canvas snapshot persistence when specified
+2. Begin Liveblocks room lifecycle foundations
+3. Begin editor canvas data loading and central canvas surface
+4. Add blob-backed canvas snapshot persistence when specified
 
 ---
 
@@ -756,6 +889,7 @@ Completed implementation foundations:
 - Prisma-backed project API routes
 - Server-loaded editor home project lists and API-backed create, rename, and
   delete actions
+- Server-gated workspace route with share dialog and collaborator management
 
 These documents are considered the canonical implementation
 constraints for the codebase.
@@ -792,11 +926,11 @@ Must maintain:
 Next implementation session should begin with:
 
 1. Environment validation
-2. Project collaborator management, if specified
-3. Liveblocks room lifecycle foundations, if specified
-4. Central canvas surface implementation, if specified
+2. Liveblocks room lifecycle foundations, if specified
+3. Central canvas surface implementation, if specified
+4. Blob-backed canvas snapshot persistence, if specified
 
-Project metadata persistence and editor home wiring are complete for the
-current Phase 1 scope.
+Project metadata persistence, editor home wiring, workspace shell access, and
+collaborator sharing are complete for the current Phase 1 scope.
 
 ```

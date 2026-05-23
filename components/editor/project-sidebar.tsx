@@ -125,7 +125,7 @@ export function ProjectSidebar({
         aria-hidden={!isVisible}
         tabIndex={isVisible ? 0 : -1}
         className={cn(
-          "fixed inset-0 z-30 bg-base/70 backdrop-blur-sm transition-opacity duration-200 md:hidden",
+          "fixed inset-0 z-30 bg-base/70 backdrop-blur-sm transition-opacity duration-300 ease-out md:hidden",
           isVisible ? "opacity-100" : "pointer-events-none opacity-0"
         )}
         onClick={onClose}
@@ -134,10 +134,10 @@ export function ProjectSidebar({
       <aside
         aria-hidden={!isVisible}
         className={cn(
-          "fixed bottom-4 left-4 top-16 z-40 flex w-80 max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-surface-border bg-surface shadow-2xl transition-[opacity,transform] duration-200 ease-out",
+          "fixed bottom-4 left-4 top-16 z-40 flex w-80 max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-surface-border bg-surface shadow-2xl will-change-transform transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           isVisible
             ? "translate-x-0 opacity-100"
-            : "pointer-events-none -translate-x-[calc(100%+1rem)] opacity-0",
+            : "pointer-events-none -translate-x-[calc(100%+2rem)] opacity-0",
           className
         )}
         {...props}
