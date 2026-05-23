@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Plus } from "lucide-react";
 
+import { BaseCanvas } from "@/components/editor/base-canvas";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
@@ -55,19 +56,8 @@ export function EditorShell({
       />
       {activeProject ? (
         <main className="relative flex min-h-0 flex-1 overflow-hidden bg-base">
-          <section className="flex min-w-0 flex-1 items-center justify-center bg-base px-6">
-            <div className="max-w-md text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-copy-muted">
-                Canvas
-              </p>
-              <h1 className="mt-3 text-2xl font-semibold text-copy-primary">
-                Architecture canvas placeholder
-              </h1>
-              <p className="mt-3 text-sm leading-6 text-copy-secondary">
-                Live canvas rendering will be added in a later implementation
-                pass.
-              </p>
-            </div>
+          <section className="min-w-0 flex-1 bg-base">
+            <BaseCanvas roomId={activeProject.id} />
           </section>
 
           <aside
