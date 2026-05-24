@@ -71,28 +71,28 @@ export const CANVAS_SHAPE_DEFAULT_SIZES: Record<
   CanvasNodeSize
 > = {
   rectangle: {
-    width: 176,
-    height: 96,
-  },
-  diamond: {
-    width: 152,
-    height: 152,
-  },
-  circle: {
-    width: 128,
-    height: 128,
-  },
-  pill: {
-    width: 176,
+    width: 144,
     height: 80,
   },
+  diamond: {
+    width: 120,
+    height: 120,
+  },
+  circle: {
+    width: 104,
+    height: 104,
+  },
+  pill: {
+    width: 144,
+    height: 64,
+  },
   cylinder: {
-    width: 152,
-    height: 112,
+    width: 124,
+    height: 88,
   },
   hexagon: {
-    width: 168,
-    height: 104,
+    width: 136,
+    height: 84,
   },
 };
 
@@ -102,7 +102,9 @@ export type CanvasNodeData = {
   shape: CanvasNodeShape;
 };
 
-export type CanvasEdgeData = Record<string, never>;
+export type CanvasEdgeData = {
+  label: string;
+};
 
 export type CanvasNode = Node<CanvasNodeData, typeof CANVAS_NODE_TYPE>;
 
