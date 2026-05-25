@@ -359,5 +359,3 @@ These rules are mandatory and must never be violated.
 13. Access tokens for collaborative rooms are issued only after membership verification.
 
 14. All new features must respect the established system boundaries before implementation.
-
-```

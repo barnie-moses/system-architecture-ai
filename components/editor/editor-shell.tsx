@@ -4,6 +4,10 @@ import * as React from "react";
 import { Plus } from "lucide-react";
 
 import { BaseCanvas } from "@/components/editor/base-canvas";
+import type {
+  CanvasExportRequest,
+  CanvasSaveRequest,
+} from "@/components/editor/base-canvas";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
@@ -11,6 +15,7 @@ import { ShareDialog } from "@/components/editor/share-dialog";
 import { useProjectActions } from "@/hooks/use-project-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { CanvasSaveStatus } from "@/hooks/use-canvas-autosave";
 import type { EditorProjectLists } from "@/types/projects";
 
 type EditorShellProps = EditorProjectLists & {
@@ -27,12 +32,49 @@ export function EditorShell({
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] =
     React.useState(false);
+  const [canvasSaveState, setCanvasSaveState] = React.useState<{
+    projectId: string | null;
+    status: CanvasSaveStatus;
+  }>({
+    projectId: null,
+    status: "idle",
+  });
+  const [canvasExportRequest, setCanvasExportRequest] =
+    React.useState<CanvasExportRequest | null>(null);
+  const [manualSaveRequest, setManualSaveRequest] =
+    React.useState<CanvasSaveRequest | null>(null);
   const projectActions = useProjectActions({ activeProjectId });
   const allProjects = [...ownedProjects, ...sharedProjects];
   const activeProject = allProjects.find(
     (project) => project.id === activeProjectId
   );
   const isWorkspace = Boolean(activeProject);
+  const canvasSaveStatus =
+    canvasSaveState.projectId === activeProjectId
+      ? canvasSaveState.status
+      : "idle";
+  const handleCanvasSaveStatusChange = React.useCallback(
+    (status: CanvasSaveStatus) => {
+      if (!activeProjectId) {
+        return;
+      }
+
+      setCanvasSaveState((currentState) => {
+        if (
+          currentState.projectId === activeProjectId &&
+          currentState.status === status
+        ) {
+          return currentState;
+        }
+
+        return {
+          projectId: activeProjectId,
+          status,
+        };
+      });
+    },
+    [activeProjectId]
+  );
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-base">
@@ -40,11 +82,29 @@ export function EditorShell({
         isAiSidebarOpen={isAiSidebarOpen}
         isSidebarOpen={isSidebarOpen}
         projectName={activeProject?.name}
+        saveStatus={canvasSaveStatus}
         showWorkspaceActions={isWorkspace}
         onAiSidebarToggle={() => setIsAiSidebarOpen((isOpen) => !isOpen)}
         onShareClick={() => setIsShareDialogOpen(true)}
         onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
         onTemplatesClick={() => setIsTemplatesModalOpen(true)}
+        onSaveClick={() =>
+          setManualSaveRequest((currentRequest) => ({
+            id: (currentRequest?.id ?? 0) + 1,
+          }))
+        }
+        onExportPdfClick={() =>
+          setCanvasExportRequest((currentRequest) => ({
+            format: "pdf",
+            id: (currentRequest?.id ?? 0) + 1,
+          }))
+        }
+        onExportPngClick={() =>
+          setCanvasExportRequest((currentRequest) => ({
+            format: "png",
+            id: (currentRequest?.id ?? 0) + 1,
+          }))
+        }
       />
       <ProjectSidebar
         activeProjectId={activeProjectId}
@@ -61,8 +121,12 @@ export function EditorShell({
         <main className="relative flex min-h-0 flex-1 overflow-hidden bg-base">
           <section className="min-w-0 flex-1 bg-base">
             <BaseCanvas
+              exportRequest={canvasExportRequest}
               isTemplatesModalOpen={isTemplatesModalOpen}
+              manualSaveRequest={manualSaveRequest}
+              projectName={activeProject.name}
               roomId={activeProject.id}
+              onSaveStatusChange={handleCanvasSaveStatusChange}
               onTemplatesModalOpenChange={setIsTemplatesModalOpen}
             />
           </section>

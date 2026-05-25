@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import {
   ClientSideSuspense,
   LiveblocksProvider,
@@ -8,6 +9,8 @@ import {
   useCanRedo,
   useCanUndo,
   useErrorListener,
+  useMyPresence,
+  useOthers,
   useRedo,
   useUndo,
 } from "@liveblocks/react";
@@ -50,10 +53,20 @@ import {
 } from "lucide-react";
 
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import {
+  useCanvasAutosave,
+  type CanvasSaveStatus,
+} from "@/hooks/use-canvas-autosave";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
+import {
+  exportCanvasDiagram,
+  type CanvasExportFormat,
+} from "@/lib/canvas-export";
+import { getCanvasStateHash, parseCanvasState } from "@/lib/canvas-state";
 import { cn } from "@/lib/utils";
 import {
   CANVAS_EDGE_TYPE,
+  CANVAS_NODE_ORIGIN,
   CANVAS_NODE_SHAPES,
   CANVAS_NODE_TYPE,
   CANVAS_SHAPE_DEFAULT_SIZES,
@@ -65,9 +78,22 @@ import type { CanvasNodeShape, CanvasNodeSize } from "@/types/canvas";
 import type { CanvasTemplate } from "@/components/editor/starter-templates";
 
 type BaseCanvasProps = {
+  exportRequest: CanvasExportRequest | null;
   isTemplatesModalOpen: boolean;
+  manualSaveRequest: CanvasSaveRequest | null;
+  projectName: string;
   roomId: string;
+  onSaveStatusChange: (status: CanvasSaveStatus) => void;
   onTemplatesModalOpenChange: (isOpen: boolean) => void;
+};
+
+export type CanvasExportRequest = {
+  format: CanvasExportFormat;
+  id: number;
+};
+
+export type CanvasSaveRequest = {
+  id: number;
 };
 
 type CanvasErrorBoundaryProps = {
@@ -96,7 +122,25 @@ type ShapeToolbarItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
+type CollaboratorPresence = {
+  connectionId: number;
+  id: string;
+  info: {
+    avatarUrl: string | null;
+    cursorColor: string;
+    displayName: string;
+  };
+  presence: {
+    cursor: {
+      x: number;
+      y: number;
+    } | null;
+    thinking: boolean;
+  };
+};
+
 const SHAPE_DRAG_MIME_TYPE = "application/x-system-architecture-shape";
+const MAX_VISIBLE_COLLABORATORS = 5;
 
 const SHAPE_TOOLBAR_ITEMS: ShapeToolbarItem[] = [
   {
@@ -138,8 +182,6 @@ const CANVAS_NODE_TYPES = {
 const CANVAS_EDGE_TYPES = {
   [CANVAS_EDGE_TYPE]: CanvasEdgeRenderer,
 } satisfies EdgeTypes;
-
-const CANVAS_NODE_ORIGIN: [number, number] = [0.5, 0.5];
 
 const REACT_FLOW_PRO_OPTIONS = {
   hideAttribution: true,
@@ -229,8 +271,12 @@ const CanvasEdgeEditingContext =
   React.createContext<CanvasEdgeEditingContextValue | null>(null);
 
 export function BaseCanvas({
+  exportRequest,
   isTemplatesModalOpen,
+  manualSaveRequest,
+  projectName,
   roomId,
+  onSaveStatusChange,
   onTemplatesModalOpenChange,
 }: BaseCanvasProps) {
   return (
@@ -240,7 +286,7 @@ export function BaseCanvas({
           id={roomId}
           initialPresence={{
             cursor: null,
-            isThinking: false,
+            thinking: false,
           }}
         >
           <ClientSideSuspense fallback={<CanvasLoadingState />}>
@@ -248,7 +294,13 @@ export function BaseCanvas({
               <CanvasConnectionFallback>
                 <ReactFlowProvider>
                   <SyncedReactFlowCanvas
+                    key={roomId}
+                    exportRequest={exportRequest}
                     isTemplatesModalOpen={isTemplatesModalOpen}
+                    manualSaveRequest={manualSaveRequest}
+                    projectName={projectName}
+                    roomId={roomId}
+                    onSaveStatusChange={onSaveStatusChange}
                     onTemplatesModalOpenChange={onTemplatesModalOpenChange}
                   />
                 </ReactFlowProvider>
@@ -310,19 +362,37 @@ function CanvasConnectionFallback({
 }
 
 function SyncedReactFlowCanvas({
+  exportRequest,
   isTemplatesModalOpen,
+  manualSaveRequest,
+  projectName,
+  roomId,
+  onSaveStatusChange,
   onTemplatesModalOpenChange,
 }: Pick<
   BaseCanvasProps,
-  "isTemplatesModalOpen" | "onTemplatesModalOpenChange"
+  | "exportRequest"
+  | "isTemplatesModalOpen"
+  | "manualSaveRequest"
+  | "projectName"
+  | "roomId"
+  | "onSaveStatusChange"
+  | "onTemplatesModalOpenChange"
 >) {
   const reactFlow = useReactFlow<CanvasNode, CanvasEdge>();
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+  const [, updateMyPresence] = useMyPresence();
   const nodeCounterRef = React.useRef(0);
   const [editingEdgeId, setEditingEdgeId] = React.useState<string | null>(null);
+  const [exportMessage, setExportMessage] = React.useState<string | null>(null);
+  const [isInitialCanvasLoadComplete, setIsInitialCanvasLoadComplete] =
+    React.useState(false);
+  const [autosaveBaselineHash, setAutosaveBaselineHash] = React.useState<
+    string | null
+  >(null);
   const [dragPreview, setDragPreview] =
     React.useState<ShapeDragPreviewState | null>(null);
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
@@ -339,6 +409,14 @@ function SyncedReactFlowCanvas({
     () => edges.map(normalizeCanvasEdge),
     [edges]
   );
+  const { status: saveStatus } = useCanvasAutosave({
+    edges: canvasEdges,
+    enabled: isInitialCanvasLoadComplete,
+    initialSavedHash: autosaveBaselineHash,
+    manualSaveRequestId: manualSaveRequest?.id ?? null,
+    nodes,
+    projectId: roomId,
+  });
   const updateDragPreviewCursor = React.useCallback(
     (cursor: ShapeDragPreviewState["cursor"]) => {
       setDragPreview((currentPreview) => {
@@ -408,6 +486,162 @@ function SyncedReactFlowCanvas({
     },
     []
   );
+  const updateLiveCursor = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+
+      updateMyPresence({
+        cursor: {
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top,
+        },
+      });
+    },
+    [updateMyPresence]
+  );
+  const clearLiveCursor = React.useCallback(() => {
+    updateMyPresence({
+      cursor: null,
+    });
+  }, [updateMyPresence]);
+
+  React.useEffect(() => {
+    let isCurrent = true;
+
+    const loadSavedCanvas = async () => {
+      if (nodes.length > 0 || canvasEdges.length > 0) {
+        setAutosaveBaselineHash(null);
+        setIsInitialCanvasLoadComplete(true);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/projects/${roomId}/canvas`);
+
+        if (!response.ok) {
+          throw new Error("Canvas load failed.");
+        }
+
+        const body = (await response.json()) as unknown;
+        const canvasState = parseLoadedCanvasState(body);
+
+        if (!isCurrent) {
+          return;
+        }
+
+        if (!canvasState.ok) {
+          throw new Error(canvasState.error);
+        }
+
+        const loadedEdges = canvasState.state.edges.map(normalizeCanvasEdge);
+        const baselineHash = getCanvasStateHash({
+          edges: loadedEdges,
+          nodes: canvasState.state.nodes,
+        });
+
+        setAutosaveBaselineHash(baselineHash);
+
+        if (
+          canvasState.state.nodes.length > 0 ||
+          canvasState.state.edges.length > 0
+        ) {
+          const currentNodes = reactFlow.getNodes();
+          const currentEdges = reactFlow.getEdges();
+
+          if (currentNodes.length === 0 && currentEdges.length === 0) {
+            reactFlow.addNodes(canvasState.state.nodes);
+            reactFlow.addEdges(loadedEdges);
+
+            window.requestAnimationFrame(() => {
+              void reactFlow.fitView({
+                duration: CANVAS_VIEWPORT_ANIMATION_MS,
+                padding: 0.2,
+              });
+            });
+          }
+        }
+      } catch {
+        if (isCurrent) {
+          setAutosaveBaselineHash(null);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsInitialCanvasLoadComplete(true);
+        }
+      }
+    };
+
+    if (!isInitialCanvasLoadComplete) {
+      void loadSavedCanvas();
+    }
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    canvasEdges,
+    isInitialCanvasLoadComplete,
+    nodes,
+    reactFlow,
+    roomId,
+  ]);
+
+  React.useEffect(() => {
+    onSaveStatusChange(saveStatus);
+  }, [onSaveStatusChange, saveStatus]);
+
+  React.useEffect(() => {
+    if (!exportRequest) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const runExport = async () => {
+      try {
+        setExportMessage(null);
+
+        const result = await exportCanvasDiagram({
+          edges: reactFlow.getEdges().map(normalizeCanvasEdge),
+          format: exportRequest.format,
+          nodes: reactFlow.getNodes(),
+          projectName,
+        });
+
+        if (!isCurrent) {
+          return;
+        }
+
+        if (result.status === "empty") {
+          setExportMessage("There is nothing to export.");
+        }
+      } catch {
+        if (isCurrent) {
+          setExportMessage("The canvas could not be exported.");
+        }
+      }
+    };
+
+    void runExport();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [exportRequest, projectName, reactFlow]);
+
+  React.useEffect(() => {
+    if (!exportMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setExportMessage(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [exportMessage]);
 
   useKeyboardShortcuts({
     reactFlow,
@@ -526,6 +760,8 @@ function SyncedReactFlowCanvas({
             setEditingEdgeId(edge.id);
           }}
           onEdgesChange={onEdgesChange}
+          onMouseLeave={clearLiveCursor}
+          onMouseMove={updateLiveCursor}
           onNodesChange={onNodesChange}
           proOptions={REACT_FLOW_PRO_OPTIONS}
         >
@@ -537,6 +773,8 @@ function SyncedReactFlowCanvas({
           />
         </ReactFlow>
       </CanvasEdgeEditingContext.Provider>
+      <PresenceAvatarGroup />
+      <LiveCursorLayer />
       <ShapePanel
         onShapeDragEnd={clearDragPreview}
         onShapeDragMove={updateDragPreviewCursor}
@@ -551,6 +789,7 @@ function SyncedReactFlowCanvas({
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
       />
+      {exportMessage ? <CanvasExportMessage message={exportMessage} /> : null}
       <StarterTemplatesModal
         isOpen={isTemplatesModalOpen}
         onImport={handleTemplateImport}
@@ -559,6 +798,177 @@ function SyncedReactFlowCanvas({
       {dragPreview ? <ShapeDragPreview preview={dragPreview} /> : null}
     </div>
   );
+}
+
+function PresenceAvatarGroup() {
+  const { userId } = useAuth();
+  const others = useOthers();
+  const collaborators = React.useMemo(
+    () =>
+      others.filter((participant) =>
+        userId ? participant.id !== userId : true
+      ),
+    [others, userId]
+  );
+  const visibleCollaborators = collaborators.slice(
+    0,
+    MAX_VISIBLE_COLLABORATORS
+  );
+  const overflowCount = collaborators.length - visibleCollaborators.length;
+
+  return (
+    <div className="pointer-events-auto absolute right-5 top-5 z-20 flex items-center rounded-full border border-surface-border bg-surface/95 px-2 py-1.5 shadow-2xl backdrop-blur">
+      {visibleCollaborators.length > 0 ? (
+        <div className="flex items-center">
+          <div className="flex -space-x-2">
+            {visibleCollaborators.map((participant) => (
+              <CollaboratorAvatar
+                key={participant.connectionId}
+                participant={participant}
+              />
+            ))}
+          </div>
+          {overflowCount > 0 ? (
+            <CollaboratorOverflow count={overflowCount} />
+          ) : null}
+          <div className="mx-2 h-6 w-px bg-surface-border" />
+        </div>
+      ) : null}
+      <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-surface-border-subtle bg-elevated shadow-[0_0_0_1px_var(--bg-base)]">
+        <UserButton
+          appearance={{
+            elements: {
+              avatarBox: "h-8 w-8",
+              userButtonAvatarBox: "h-8 w-8",
+              userButtonTrigger: "h-8 w-8",
+            },
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CollaboratorAvatar({
+  participant,
+}: {
+  participant: CollaboratorPresence;
+}) {
+  const displayName = participant.info.displayName;
+  const initials = getInitials(displayName);
+
+  return (
+    <div
+      aria-label={displayName}
+      className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-surface-border-subtle bg-elevated text-xs font-semibold text-copy-primary shadow-[0_0_0_1px_var(--bg-base)]"
+      title={displayName}
+    >
+      {participant.info.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt={displayName}
+          className="h-full w-full object-cover"
+          src={participant.info.avatarUrl}
+        />
+      ) : (
+        <span>{initials}</span>
+      )}
+    </div>
+  );
+}
+
+function CollaboratorOverflow({ count }: { count: number }) {
+  return (
+    <div className="-ml-2 flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full border border-surface-border-subtle bg-subtle px-2 text-xs font-semibold text-copy-secondary shadow-[0_0_0_1px_var(--bg-base)]">
+      +{count}
+    </div>
+  );
+}
+
+function LiveCursorLayer() {
+  const { userId } = useAuth();
+  const others = useOthers();
+  const participants = React.useMemo(
+    () =>
+      others.filter(
+        (participant) =>
+          participant.presence.cursor &&
+          (userId ? participant.id !== userId : true)
+      ),
+    [others, userId]
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {participants.map((participant) =>
+        participant.presence.cursor ? (
+          <LiveCursor
+            key={participant.connectionId}
+            participant={participant}
+          />
+        ) : null
+      )}
+    </div>
+  );
+}
+
+function LiveCursor({
+  participant,
+}: {
+  participant: CollaboratorPresence;
+}) {
+  const cursor = participant.presence.cursor;
+
+  if (!cursor) {
+    return null;
+  }
+
+  return (
+    <div
+      className="absolute flex items-start"
+      style={{
+        left: cursor.x,
+        top: cursor.y,
+        transform: "translate(-1px, -1px)",
+      }}
+    >
+      <svg
+        aria-hidden="true"
+        className="h-5 w-5 drop-shadow-lg"
+        fill="none"
+        viewBox="0 0 20 20"
+      >
+        <path
+          d="M3 2.5 16.5 9 10.6 10.9 8.4 16.5 3 2.5Z"
+          fill={participant.info.cursorColor}
+          stroke="var(--bg-base)"
+          strokeLinejoin="round"
+          strokeWidth="1.5"
+        />
+      </svg>
+      <span
+        className="ml-1 mt-3 max-w-44 truncate rounded-xl px-2 py-1 text-xs font-semibold text-copy-primary shadow-lg"
+        style={{
+          backgroundColor: participant.info.cursorColor,
+          color: "var(--bg-base)",
+        }}
+      >
+        {participant.info.displayName}
+      </span>
+    </div>
+  );
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return initials || "U";
 }
 
 function CanvasEdgeRenderer({
@@ -819,6 +1229,17 @@ function CanvasControlButton({
     >
       {children}
     </button>
+  );
+}
+
+function CanvasExportMessage({ message }: { message: string }) {
+  return (
+    <div
+      className="pointer-events-none absolute right-5 top-20 z-30 rounded-xl border border-surface-border bg-surface/95 px-3 py-2 text-sm font-medium text-copy-secondary shadow-2xl backdrop-blur"
+      role="status"
+    >
+      {message}
+    </div>
   );
 }
 
@@ -1434,10 +1855,25 @@ function normalizeCanvasEdge(edge: CanvasEdge): CanvasEdge {
   return {
     ...edge,
     type: CANVAS_EDGE_TYPE,
+    interactionWidth:
+      edge.interactionWidth ?? CANVAS_DEFAULT_EDGE_OPTIONS.interactionWidth,
+    markerEnd: edge.markerEnd ?? CANVAS_DEFAULT_EDGE_OPTIONS.markerEnd,
+    style: edge.style ?? CANVAS_DEFAULT_EDGE_OPTIONS.style,
     data: {
       label,
     },
   };
+}
+
+function parseLoadedCanvasState(value: unknown) {
+  if (!isRecord(value) || !("canvas" in value)) {
+    return {
+      ok: false as const,
+      error: "Canvas response is invalid.",
+    };
+  }
+
+  return parseCanvasState(value.canvas);
 }
 
 function cloneCanvasTemplate(template: CanvasTemplate): {

@@ -40,12 +40,18 @@ full context.
 - Canvas ergonomics implementation re-verified against spec 17
 - Starter template library and import modal completed from spec 18
 - Starter templates navbar placement and AI button active styling completed
+- Presence avatar group and live cursor overlay completed from spec 19
+- Share dialog invite email input text contrast fixed
 - Workspace project title placement aligned beside navbar panel toggle
 - Project sidebar rounded floating panel and active sidebar toggle styling
   completed
 - AI sidebar rounded floating panel styling completed
 - Prisma project schema drift repair applied to the configured database
 - Auth page visual composition refined from reference screenshot
+- Canvas export controls from spec 20 completed
+- Canvas autosave from spec 21 completed
+- Manual Save button ordering and click behavior completed
+- Save button temporary Saved confirmation completed
 - Context specification finalized
 - System boundaries established
 - UI design language defined
@@ -54,15 +60,230 @@ full context.
 
 # Current Goal
 
-- Continue Phase 1 foundation after completing starter templates from
-  `context/feature-specs/18-starter-template.md`.
+- Continue Phase 1 foundation after completing canvas autosave from
+  `context/feature-specs/21-canvas-autosave.md`.
 
 Immediate priorities:
 
 1. Configure remaining environment validation
-2. Add blob-backed canvas snapshot persistence when specified
-3. Begin Trigger.dev workflow foundations when specified
+2. Begin Trigger.dev workflow foundations when specified
+3. Add AI generation only when specified
 4. Add additional canvas behavior, editing, or persistence only when specified
+
+---
+
+## Canvas Autosave
+
+Spec:
+
+- `context/feature-specs/21-canvas-autosave.md`
+
+Completed implementation:
+
+- Confirmed `prisma/models/project.prisma` already includes
+  `canvasJsonPath` for the saved canvas blob URL
+- Installed `@vercel/blob`
+- Added shared canvas state validation and normalization in
+  `lib/canvas-state.ts`
+  - Validates saved canvas payloads before persistence
+  - Normalizes nodes and edges back to the canonical canvas node and edge types
+  - Provides stable canvas state hashing for autosave deduplication
+- Added `lib/canvas-persistence.ts`
+  - Writes canvas JSON to Vercel Blob under `canvas/{projectId}.json`
+  - Uses private blob access, overwrite semantics, and JSON content type
+  - Stores the returned blob URL on `Project.canvasJsonPath`
+  - Deletes stale previous blob URLs when the saved URL changes
+  - Loads saved canvas snapshots from Blob through the server boundary
+- Added `GET /api/projects/[projectId]/canvas`
+  - Authenticates the current user
+  - Verifies project access through the existing project membership helper
+  - Reads the saved blob URL from Prisma
+  - Returns the saved canvas state or an empty canvas state when none exists
+- Added `PUT /api/projects/[projectId]/canvas`
+  - Authenticates the current user
+  - Verifies project access before mutation
+  - Validates the incoming canvas JSON before writing
+  - Uploads the snapshot to Blob and updates Prisma metadata
+  - Returns the saved canvas state and latest saved metadata
+- Added `hooks/use-canvas-autosave.ts`
+  - Watches Liveblocks-backed React Flow nodes and edges
+  - Debounces saves to avoid excessive writes
+  - Deduplicates saves with a stable canvas hash
+  - Prevents overlapping save requests
+  - Retries failed saves with short backoff delays
+  - Tracks `saving`, `saved`, and `error` status
+  - Avoids autosaving during initial canvas hydration
+- Updated the active editor canvas
+  - Loads saved canvas state only when the Liveblocks room is empty
+  - Re-checks the current room before hydrating so active collaboration is not
+    overwritten by a late load response
+  - Hydrates both nodes and edges into the existing collaborative canvas state
+  - Fits the view after loading a non-empty saved snapshot
+  - Keeps the load behavior scoped inside the editor room
+- Updated the editor navbar
+  - Adds a subtle Save status control next to Templates
+  - Shows `Saving`, `Saved`, or `Error`
+  - Avoids success toast spam
+- Follow-up refinement:
+  - Moved Save to be the first workspace action before Templates
+  - Made Save clickable
+  - Manual Save clicks force an immediate save through the existing canvas API,
+    even when the latest autosave hash already matches
+  - Save now returns to the `Save` label after briefly showing `Saved` on a
+    successful save
+
+Architecture notes:
+
+- Prisma remains responsible for project metadata and the saved blob URL only.
+- Vercel Blob remains responsible for the canvas JSON payload.
+- Liveblocks remains responsible for real-time collaborative state.
+- Canvas save/load routes remain thin API orchestration layers.
+- Autosave remains non-blocking and does not replace Liveblocks
+  collaboration.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Signed-out `/editor` smoke check returns Clerk's expected sign-in redirect
+- In-app browser automation could not be driven because the Node REPL browser
+  control tool was not exposed through `tool_search` in this session
+
+---
+
+## Canvas Export Controls
+
+Spec:
+
+- `context/feature-specs/20-export-canvas.md`
+
+Completed implementation:
+
+- Added an Export action to the active editor navbar next to Templates, Share,
+  and AI
+- Added a compact Export menu with:
+  - Download PNG
+  - Download PDF
+- Added `lib/canvas-export.ts`
+  - Builds a standalone SVG from the current React Flow nodes and edges
+  - Exports only diagram content, excluding navbar, side panels, shape toolbar,
+    zoom controls, avatars, Liveblocks UI, and dotted canvas background
+  - Preserves node shapes, node colors, node labels, edge paths, arrow markers,
+    and non-empty edge labels
+  - Fits exported bounds around visible nodes with padding
+  - Uses a clean solid canvas background for readability instead of the dotted
+    editor background
+  - Generates PNG downloads fully in the browser
+  - Generates landscape PDF downloads fully in the browser by embedding the
+    rasterized diagram into a PDF page
+  - Downloads files as `<project-name>-canvas.png` and
+    `<project-name>-canvas.pdf`
+- Added a canvas export request bridge from the navbar to the Liveblocks-backed
+  canvas without changing canvas editing behavior
+- Added an empty-canvas guard that shows `There is nothing to export.` and does
+  not download a blank file
+- Corrected PDF image embedding after PNG exported correctly but PDF output
+  clipped wide diagrams
+  - PDF export now declares the embedded JPEG with the actual rasterized image
+    dimensions instead of the pre-scale SVG dimensions
+  - PDF page height now adapts to wide diagram aspect ratios while keeping a
+    landscape page
+
+Architecture notes:
+
+- Export remains fully client-side.
+- No server-side export routes were added.
+- No database, blob storage, API route, or durable workflow logic was changed.
+- Existing node rendering and edge editing behavior remain unchanged.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Re-verified after PDF export correction:
+  - `npm run lint` passed
+  - `npm run build` passed
+- Signed-out `/editor` smoke check returns Clerk's expected sign-in redirect
+- Existing dev server is running on `http://localhost:3000`
+- A second dev server was not started because Next reported an existing server
+  for this repo on port 3000
+- In-app browser automation could not be driven because no browser automation
+  tool was exposed through `tool_search` in this session
+
+---
+
+## Presence Avatars And Live Cursors
+
+Spec:
+
+- `context/feature-specs/19-presence-avatars-cursor.md`
+
+Completed implementation:
+
+- Updated `liveblocks.config.ts`
+  - Presence now includes `cursor: { x: number; y: number } | null`
+  - Presence now includes the spec-defined `thinking: boolean`
+- Updated the Liveblocks room initial presence in
+  `components/editor/base-canvas.tsx`
+  - Initializes `cursor` to `null`
+  - Initializes `thinking` to `false`
+- Added a canvas-only participant avatar group inside the active editor room
+  view
+  - The shared editor navbar remains unchanged
+  - The editor home state does not render the presence group
+  - The group is positioned in the top-right of the canvas area
+  - The current Clerk user ID is read through the active Clerk session
+  - Liveblocks participants are filtered so the current Clerk user is not
+    rendered as a collaborator avatar
+  - The current user is rendered separately with Clerk's existing `UserButton`
+  - Collaborator avatars are display-only
+  - The divider before the Clerk `UserButton` renders only when collaborators
+    are present
+  - Collaborator avatars render profile photos when available and initials as
+    fallback
+  - Up to five collaborators are shown in an overlapping stack
+  - Additional collaborators render as a `+N` overflow chip
+  - Avatar surfaces use subtle canvas-readable rings
+- Added Liveblocks-backed live cursors inside the canvas room
+  - Cursor positions are broadcast through `useMyPresence`
+  - React Flow `onMouseMove` updates the current user's cursor position
+  - React Flow `onMouseLeave` clears the cursor to `null`
+  - Cursor rendering uses `useOthers`
+  - Current user cursors are filtered out using the active Clerk user ID
+  - Each remote cursor renders a colored pointer and attached name badge
+  - Pointer and badge color use the participant's Liveblocks cursor color
+
+Architecture notes:
+
+- Presence remains transient Liveblocks state and does not touch persistence.
+- The feature stays inside the canvas client component because it requires
+  Clerk client hooks, Liveblocks hooks, and pointer events.
+- No navbar actions, node behavior, edge behavior, APIs, database code, or
+  durable workflows were changed.
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
+- Signed-out `/editor` smoke check still redirects through Clerk protection
+- In-app browser automation could not be driven because the Node REPL browser
+  control tool was not exposed in this session
+
+---
+
+## Share Dialog Input Contrast
+
+Completed implementation:
+
+- Updated `components/editor/share-dialog.tsx`
+  - Invite email input now uses `text-copy-primary` for typed text
+  - Placeholder remains muted with `placeholder:text-copy-muted`
+  - Caret uses the brand token with `caret-brand`
+
+Verification:
+
+- `npm run lint` passed
+- `npm run build` passed
 
 ---
 
@@ -735,7 +956,7 @@ Completed implementation:
 
 - Added `@liveblocks/node` for server-side room lifecycle and token issuance
 - Updated `liveblocks.config.ts`
-  - Defines presence with cursor position and `isThinking`
+  - Defines presence with cursor position and `thinking`
   - Defines `UserMeta` with user ID, display name, avatar URL, and cursor
     color metadata
   - Replaced placeholder empty object types with strict empty records/events
@@ -791,7 +1012,7 @@ Completed implementation:
   - Client-side Liveblocks and React Flow canvas wrapper
   - Uses `LiveblocksProvider` with `/api/liveblocks-auth`
   - Uses `RoomProvider` with the current project room ID
-  - Initializes presence with `cursor: null` and `isThinking: false`
+  - Initializes presence with `cursor: null` and `thinking: false`
   - Uses `ClientSideSuspense` with a simple loading state
   - Adds Liveblocks error handling and a canvas connection fallback
   - Wires `useLiveblocksFlow` with suspense and empty initial nodes/edges

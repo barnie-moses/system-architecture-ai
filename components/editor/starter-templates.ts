@@ -1,5 +1,6 @@
 import {
   CANVAS_EDGE_TYPE,
+  CANVAS_NODE_ORIGIN,
   CANVAS_NODE_TYPE,
   CANVAS_SHAPE_DEFAULT_SIZES,
   DEFAULT_NODE_COLOR,
@@ -19,8 +20,6 @@ export type CanvasTemplate = {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
 };
-
-const CANVAS_NODE_ORIGIN: [number, number] = [0.5, 0.5];
 
 function colorId(id: CanvasNodeColorId): CanvasNodeColorId {
   return NODE_COLORS.some((color) => color.id === id)

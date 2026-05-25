@@ -30,3 +30,8 @@ Add resizing and inline label editing to canvas nodes.
 
 - Selected nodes show resize handles.
 - Resizing updates node dimensions through the existing node state flow.
+- Double-clicking a node opens inline label editing.
+- Label changes propagate through the collaborative canvas state flow.
+- Label editing interactions do not trigger canvas drag or pan.
+- Empty labels show the centered placeholder text while editing.
+- Project builds without type errors (`npm run build`).
