@@ -24,3 +24,12 @@ Replace the default canvas edges with custom edges that feel easier to follow, e
    - use React Flow's `EdgeLabelRenderer` and the path midpoint coordinates from `getSmoothStepPath` to position the label
    - do not calculate midpoint position manually
    - use an input that grows with the label text
+
+## Check When Done
+
+- Nodes show connection handles on all four sides.
+- Connection handles fade in on hover.
+- Custom edge renderer uses right-angle routing.
+- Edge labels are editable via double-click.
+- Edge styling brightens on hover and selection.
+- `npm run build` passes without type errors.

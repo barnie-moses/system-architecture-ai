@@ -1,5 +1,9 @@
 Replace the placeholder node renderer with proper shape rendering and a drag preview.
 
+## Dependencies
+
+- Canvas Type System: provides node shape type definitions and contracts for rectangle, pill, circle, diamond, hexagon, and cylinder shapes, including the shared rendering contracts used by imported templates, generated content, and collaborative canvas updates.
+
 ## Implementation
 
 1. Replace the placeholder node shape rendering.
@@ -16,6 +20,9 @@ Replace the placeholder node renderer with proper shape rendering and a drag pre
    - keep this limited to drag preview behavior only
 
 3. Keep node rendering connected to the existing collaborative canvas state.
+   - validate node shape rendering against a canonical canvas schema for imported templates, generated content, collaborative updates, and persisted snapshots
+   - enforce invariants during imports and node edits so shape variants remain consistent across template import, live collaboration, and saved snapshot playback
+   - include schema versioning and automatic migration/validation behavior for mismatched schema versions
 
 ## Scope Limits
 

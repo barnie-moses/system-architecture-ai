@@ -29,7 +29,7 @@ Create `lib/prisma.ts` and a cached singleton
 
 Branch by `DATABASE_URL`:
 
-- if it starts with. `prisma+postgres://`, use Accelerate
+- if it starts with `prisma+postgres://`, use Accelerate
 - otherwise use direct `@prisma/adapter-pg`
 
 Cache the client on the `global` in development for hot reloads.

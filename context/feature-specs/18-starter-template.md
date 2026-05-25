@@ -33,3 +33,20 @@ Add a small starter template library so users can start a canvas from a pre-buil
    - draw edges as simple lines between node centers
    - draw nodes using their shape and color data
    - keep the preview lightweight, no React Flow instance needed
+
+## Scope Limits
+
+- don’t change existing node or edge rendering.
+- don’t add a template editing UI.
+- don’t change canvas creation outside of template import.
+- template previews are read-only.
+- keep this focused on template selection, preview, and import only.
+
+## Check When Done
+
+- At least three starter templates exist with names, descriptions, nodes, and edges.
+- The starter templates modal opens from the navbar.
+- Each template card shows a preview and an import button.
+- Clicking import calls `onImport` and creates the template nodes and edges on the canvas.
+- Template previews render correctly and fit the fixed-size viewport.
+- `npm run build` passes.

@@ -133,8 +133,9 @@ export function ProjectSidebar({
 
       <aside
         aria-hidden={!isVisible}
+        style={{ top: "calc(var(--navbar-height) + var(--sidebar-offset))" }}
         className={cn(
-          "fixed bottom-2 left-2 top-[calc(3.5rem+0.5rem)] z-40 flex w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-3xl border border-surface-border bg-surface shadow-2xl will-change-transform transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "fixed bottom-2 left-2 z-40 flex w-96 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-3xl border border-surface-border bg-surface shadow-2xl will-change-transform transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           isVisible
             ? "translate-x-0 opacity-100"
             : "pointer-events-none -translate-x-[calc(100%+2rem)] opacity-0",

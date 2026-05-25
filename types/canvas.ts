@@ -2,6 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 
 export const CANVAS_NODE_TYPE = "canvasNode";
 export const CANVAS_EDGE_TYPE = "canvasEdge";
+export const CANVAS_NODE_ORIGIN: [number, number] = [0.5, 0.5];
 
 export const NODE_COLORS = [
   {

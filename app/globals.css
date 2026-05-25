@@ -108,6 +108,8 @@
   --input: var(--border-subtle);
   --ring: var(--accent-primary);
   --radius: 0.75rem;
+  --navbar-height: 3.5rem;
+  --sidebar-offset: 0.5rem;
   --sidebar: var(--bg-surface);
   --sidebar-foreground: var(--text-primary);
   --sidebar-primary: var(--accent-primary);
